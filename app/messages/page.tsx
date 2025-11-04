@@ -92,7 +92,17 @@ export default function MessagesPage() {
         <div className="border-b border-border p-4">
           <div className="mb-4 flex items-center justify-between">
             <h1 className="text-xl font-bold text-foreground">Messages</h1>
-            <Button size="sm" variant="outline" className="gap-2 bg-transparent">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-2 bg-transparent"
+              onClick={() => {
+                // Create new conversation functionality
+                // For now, just log - in production this would open a modal or navigate to new conversation
+                console.log("Create new conversation")
+                alert("New conversation feature coming soon!")
+              }}
+            >
               <Plus className="h-4 w-4" />
             </Button>
           </div>

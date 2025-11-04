@@ -733,14 +733,7 @@ export async function getAnnouncements(userId: string) {
 
   let query = supabase
     .from('announcements')
-    .select(`
-      *,
-      author:author_id (
-        id,
-        name,
-        email
-      )
-    `)
+    .select('*')
     .order('created_at', { ascending: false })
 
   const { data, error } = await query
@@ -755,6 +748,37 @@ export async function getAnnouncements(userId: string) {
   })
   
   return filtered
+}
+
+export async function createAnnouncement(announcementData: {
+  title: string
+  content: string
+  type: 'general' | 'important' | 'urgent' | 'event' | 'policy_update'
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
+  target_audience?: 'all' | 'department' | 'branch' | 'role'
+  target_department?: string
+  target_branch?: string
+  target_roles?: string[]
+  is_pinned?: boolean
+  start_date?: string
+  end_date?: string
+  attachments?: string[]
+  created_by: string
+}) {
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert({
+      ...announcementData,
+      priority: announcementData.priority || 'normal',
+      target_audience: announcementData.target_audience || 'all',
+      is_pinned: announcementData.is_pinned || false,
+      start_date: announcementData.start_date || new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 // =====================================================

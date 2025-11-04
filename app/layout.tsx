@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/react"
 import { AuthProvider } from "@/lib/auth-context"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { APP_NAME, APP_FULL_NAME, APP_DESCRIPTION } from "@/lib/constants"
@@ -28,6 +29,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <Analytics />
+            <SpeedInsights />
           </AuthProvider>
         </ErrorBoundary>
       </body>

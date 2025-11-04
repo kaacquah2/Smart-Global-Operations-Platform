@@ -3,7 +3,7 @@
 import type React from "react"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Building2,
@@ -25,6 +25,7 @@ import { useState, useEffect } from "react"
 import { APP_NAME } from "@/lib/constants"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useAuth } from "@/lib/auth-context"
 
 interface NavItem {
   label: string
@@ -50,6 +51,8 @@ const navItems: NavItem[] = [
 
 export function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const isMobile = useIsMobile()
@@ -58,6 +61,17 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileMenuOpen(false)
   }, [pathname])
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/auth/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Still redirect even if logout fails
+      router.push('/auth/login')
+    }
+  }
 
   const NavContent = ({ onItemClick }: { onItemClick?: () => void }) => (
     <>
@@ -103,7 +117,10 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       <div className="space-y-2 border-t border-sidebar-border p-4">
-        <button className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-all">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/10 transition-all"
+        >
           <LogOut className="h-5 w-5 flex-shrink-0" />
           {(sidebarOpen || isMobile) && <span>Logout</span>}
         </button>

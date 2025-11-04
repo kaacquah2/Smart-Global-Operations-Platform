@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Filter } from "lucide-react"
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Filter, ChevronDown, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { getEvents, getAllDepartments } from "@/lib/supabase/queries"
@@ -36,6 +36,7 @@ export default function EventsPage() {
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDepartment, setFilterDepartment] = useState<string>('own')
   const [departments, setDepartments] = useState<any[]>([])
+  const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
@@ -89,6 +90,18 @@ export default function EventsPage() {
 
     loadEvents()
   }, [user, filterDepartment])
+
+  const toggleEventExpand = (eventId: string) => {
+    setExpandedEvents(prev => {
+      const next = new Set(prev)
+      if (next.has(eventId)) {
+        next.delete(eventId)
+      } else {
+        next.add(eventId)
+      }
+      return next
+    })
+  }
 
   const filteredEvents = events.filter(event => {
     const matchesType = filterType === 'all' || event.event_type === filterType
@@ -201,52 +214,117 @@ export default function EventsPage() {
                   <div>
                     <h2 className="text-xl font-semibold mb-4">Upcoming Events</h2>
                     <div className="space-y-4">
-                      {upcomingEvents.map((event) => (
-                        <Card key={event.id} className="hover:shadow-md transition-shadow">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <CardTitle className="flex items-center gap-2">
-                                  {event.title}
-                                  <Badge className={eventTypeColors[event.event_type] || 'bg-gray-100'}>
-                                    {event.event_type}
-                                  </Badge>
-                                </CardTitle>
-                                <CardDescription className="mt-2 flex flex-wrap items-center gap-4">
-                                  <span className="flex items-center gap-1">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    {formatDate(event.start_time)}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4" />
-                                    {formatTime(event.start_time)} - {formatTime(event.end_time)}
-                                  </span>
-                                  {event.location && (
-                                    <span className="flex items-center gap-1">
-                                      <MapPin className="h-4 w-4" />
-                                      {event.location}
-                                    </span>
+                      {upcomingEvents.map((event) => {
+                        const isExpanded = expandedEvents.has(event.id)
+                        return (
+                          <Card key={event.id} className="hover:shadow-md transition-all cursor-pointer border-border">
+                            <button
+                              onClick={() => toggleEventExpand(event.id)}
+                              className="w-full text-left"
+                            >
+                              <CardHeader>
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <CardTitle className="flex items-center gap-2">
+                                      {event.title}
+                                      <Badge className={eventTypeColors[event.event_type] || 'bg-gray-100'}>
+                                        {event.event_type}
+                                      </Badge>
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                                      )}
+                                    </CardTitle>
+                                    <CardDescription className="mt-2 flex flex-wrap items-center gap-4">
+                                      <span className="flex items-center gap-1">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {formatDate(event.start_time)}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-4 w-4" />
+                                        {formatTime(event.start_time)} - {formatTime(event.end_time)}
+                                      </span>
+                                      {event.location && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="h-4 w-4" />
+                                          {event.location}
+                                        </span>
+                                      )}
+                                      {event.organizer && (
+                                        <span className="flex items-center gap-1">
+                                          <Users className="h-4 w-4" />
+                                          {event.organizer.name}
+                                        </span>
+                                      )}
+                                    </CardDescription>
+                                  </div>
+                                  {event.requires_rsvp && (
+                                    <Badge variant="outline">RSVP Required</Badge>
                                   )}
-                                  {event.organizer && (
-                                    <span className="flex items-center gap-1">
-                                      <Users className="h-4 w-4" />
-                                      {event.organizer.name}
-                                    </span>
+                                </div>
+                              </CardHeader>
+                            </button>
+                            {isExpanded && (
+                              <CardContent className="pt-0 pb-4">
+                                <div className="pt-4 border-t space-y-3">
+                                  {event.description && (
+                                    <div>
+                                      <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                                      <p className="text-sm text-foreground whitespace-pre-wrap">{event.description}</p>
+                                    </div>
                                   )}
-                                </CardDescription>
-                              </div>
-                              {event.requires_rsvp && (
-                                <Badge variant="outline">RSVP Required</Badge>
-                              )}
-                            </div>
-                          </CardHeader>
-                          {event.description && (
-                            <CardContent>
-                              <p className="text-sm">{event.description}</p>
-                            </CardContent>
-                          )}
-                        </Card>
-                      ))}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <p className="text-muted-foreground">Start Time</p>
+                                      <p className="font-semibold">{formatDate(event.start_time)} {formatTime(event.start_time)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">End Time</p>
+                                      <p className="font-semibold">{formatDate(event.end_time)} {formatTime(event.end_time)}</p>
+                                    </div>
+                                    {event.location && (
+                                      <div>
+                                        <p className="text-muted-foreground">Location</p>
+                                        <p className="font-semibold">{event.location}</p>
+                                      </div>
+                                    )}
+                                    {event.organizer && (
+                                      <div>
+                                        <p className="text-muted-foreground">Organizer</p>
+                                        <p className="font-semibold">{event.organizer.name}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {event.target_audience && (
+                                    <div>
+                                      <p className="text-sm font-medium text-muted-foreground mb-1">Target Audience</p>
+                                      <p className="text-sm text-foreground capitalize">
+                                        {event.target_audience === 'all' ? 'All Employees' : 
+                                         event.target_audience === 'department' ? `Department: ${event.target_department}` :
+                                         event.target_audience === 'branch' ? `Branch: ${event.target_branch}` :
+                                         event.target_audience}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {event.requires_rsvp && (
+                                    <div className="pt-2">
+                                      <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20">
+                                        RSVP Required - Click to respond
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            )}
+                            {!isExpanded && event.description && (
+                              <CardContent>
+                                <p className="text-sm line-clamp-2">{event.description}</p>
+                              </CardContent>
+                            )}
+                          </Card>
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -256,25 +334,81 @@ export default function EventsPage() {
                   <div>
                     <h2 className="text-xl font-semibold mb-4">Past Events</h2>
                     <div className="space-y-4">
-                      {pastEvents.map((event) => (
-                        <Card key={event.id} className="opacity-60">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <CardTitle className="flex items-center gap-2">
-                                  {event.title}
-                                  <Badge className={eventTypeColors[event.event_type] || 'bg-gray-100'}>
-                                    {event.event_type}
-                                  </Badge>
-                                </CardTitle>
-                                <CardDescription className="mt-2">
-                                  {formatDate(event.start_time)} • {event.location}
-                                </CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                        </Card>
-                      ))}
+                      {pastEvents.map((event) => {
+                        const isExpanded = expandedEvents.has(event.id)
+                        return (
+                          <Card key={event.id} className="opacity-60 hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => toggleEventExpand(event.id)}
+                              className="w-full text-left"
+                            >
+                              <CardHeader>
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <CardTitle className="flex items-center gap-2">
+                                      {event.title}
+                                      <Badge className={eventTypeColors[event.event_type] || 'bg-gray-100'}>
+                                        {event.event_type}
+                                      </Badge>
+                                      {isExpanded ? (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+                                      ) : (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                                      )}
+                                    </CardTitle>
+                                    <CardDescription className="mt-2 flex flex-wrap items-center gap-4">
+                                      <span className="flex items-center gap-1">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {formatDate(event.start_time)}
+                                      </span>
+                                      {event.location && (
+                                        <span className="flex items-center gap-1">
+                                          <MapPin className="h-4 w-4" />
+                                          {event.location}
+                                        </span>
+                                      )}
+                                    </CardDescription>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                            </button>
+                            {isExpanded && (
+                              <CardContent className="pt-0 pb-4">
+                                <div className="pt-4 border-t space-y-3">
+                                  {event.description && (
+                                    <div>
+                                      <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                                      <p className="text-sm text-foreground whitespace-pre-wrap">{event.description}</p>
+                                    </div>
+                                  )}
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                      <p className="text-muted-foreground">Start Time</p>
+                                      <p className="font-semibold">{formatDate(event.start_time)} {formatTime(event.start_time)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-muted-foreground">End Time</p>
+                                      <p className="font-semibold">{formatDate(event.end_time)} {formatTime(event.end_time)}</p>
+                                    </div>
+                                    {event.location && (
+                                      <div>
+                                        <p className="text-muted-foreground">Location</p>
+                                        <p className="font-semibold">{event.location}</p>
+                                      </div>
+                                    )}
+                                    {event.organizer && (
+                                      <div>
+                                        <p className="text-muted-foreground">Organizer</p>
+                                        <p className="font-semibold">{event.organizer.name}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            )}
+                          </Card>
+                        )
+                      })}
                     </div>
                   </div>
                 )}

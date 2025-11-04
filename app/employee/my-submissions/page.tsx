@@ -190,7 +190,15 @@ export default function MySubmissionsPage() {
                           <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{submission.description}</p>
                         )}
                       </div>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // Navigate to submission details - in production this would open a modal or navigate to detail page
+                          console.log("View submission details:", submission.id)
+                          alert(`Viewing details for submission: ${submission.title || 'Untitled'}`)
+                        }}
+                      >
                         View Details
                       </Button>
                     </div>

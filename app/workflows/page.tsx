@@ -193,10 +193,28 @@ export default function WorkflowsPage() {
                         </>
                       )}
                     </Button>
-                    <Button variant="ghost" size="sm" className="gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => {
+                        // Copy workflow functionality
+                        const copiedWorkflow = { ...workflow, id: `${workflow.id}-copy`, name: `${workflow.name} (Copy)` }
+                        setWorkflows([...workflows, copiedWorkflow])
+                      }}
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="gap-1 text-destructive hover:text-destructive">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="gap-1 text-destructive hover:text-destructive"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete "${workflow.name}"?`)) {
+                          setWorkflows(workflows.filter(w => w.id !== workflow.id))
+                        }
+                      }}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

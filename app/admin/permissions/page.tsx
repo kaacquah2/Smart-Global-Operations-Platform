@@ -130,7 +130,11 @@ export default function PermissionsPage() {
         {/* Roles Overview */}
         <div className="mb-8 grid gap-4 md:grid-cols-5">
           {roles.map((role) => (
-            <Card key={role.id} className="p-4 text-center hover:shadow-lg transition-shadow cursor-pointer">
+            <Card 
+              key={role.id} 
+              className="p-4 text-center hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => setExpandedRole(expandedRole === role.id ? null : role.id)}
+            >
               <Shield className="h-8 w-8 mx-auto mb-2 text-accent" />
               <p className="font-semibold text-foreground text-sm">{role.name}</p>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{role.description}</p>
@@ -171,7 +175,16 @@ export default function PermissionsPage() {
                   </div>
 
                   {role.canEdit && (
-                    <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 bg-transparent"
+                      onClick={() => {
+                        // Open edit permissions dialog/modal
+                        // In production, this would open a modal to edit permissions for this role
+                        alert(`Edit permissions for ${role.name} role\n\nThis feature would open a modal/dialog to modify permissions for this role.`)
+                      }}
+                    >
                       <Lock className="h-4 w-4" />
                       Edit Permissions
                     </Button>

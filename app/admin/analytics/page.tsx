@@ -102,11 +102,39 @@ export default function AdvancedAnalyticsPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => {
+                  // Open filters dialog - in production this would open a modal
+                  alert("Filters feature coming soon!")
+                }}
+              >
                 <Filter className="h-4 w-4" />
                 Filters
               </Button>
-              <Button variant="outline" className="gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => {
+                  // Export analytics data
+                  const exportData = {
+                    dateRange,
+                    performanceData,
+                    departmentPerformance,
+                    revenueData,
+                    statusDistribution,
+                    kpis
+                  }
+                  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+                  const url = window.URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `analytics-export-${dateRange}-${new Date().toISOString().split('T')[0]}.json`
+                  a.click()
+                  window.URL.revokeObjectURL(url)
+                }}
+              >
                 <Download className="h-4 w-4" />
                 Export
               </Button>

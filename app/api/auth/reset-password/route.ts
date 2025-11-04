@@ -17,7 +17,15 @@ import { rateLimitMiddleware } from '@/lib/rate-limit'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-// Generate password from user initials and year joined
+/**
+ * Generates a password based on user initials and year joined
+ * Format: Initials(2) + Year(4) + SpecialChar(1) + Number(1)
+ * Example: "JS2024!3" for John Smith joined in 2024
+ * 
+ * @param name - User's full name (used to extract initials)
+ * @param hireDate - User's hire date (used to extract year)
+ * @returns Generated password string
+ */
 function generatePasswordFromUserInfo(name: string | null, hireDate: string | null): string {
   // Extract initials from name
   let initials = ''
@@ -63,7 +71,16 @@ function generatePasswordFromUserInfo(name: string | null, hireDate: string | nu
   return password
 }
 
-// Email sending function - tries Edge Function first, then direct Resend
+/**
+ * Sends password reset email to user
+ * Tries Supabase Edge Function first, falls back to direct Resend API
+ * 
+ * @param email - User's email address
+ * @param name - User's name for personalization
+ * @param newPassword - The newly generated password
+ * @param loginUrl - URL to login page
+ * @returns Result object with success status and message ID
+ */
 async function sendPasswordResetEmail(
   email: string,
   name: string | null,
@@ -255,6 +272,29 @@ ${APP_NAME} Team
   }
 }
 
+/**
+ * POST /api/auth/reset-password
+ * 
+ * Processes a password reset request from admin
+ * 
+ * Request body:
+ * - requestId: UUID of the password reset request
+ * - processedBy: UUID of the admin processing the request
+ * 
+ * @param request - Next.js request object
+ * @returns JSON response with success status and email details
+ * 
+ * @example
+ * ```typescript
+ * const response = await fetch('/api/auth/reset-password', {
+ *   method: 'POST',
+ *   body: JSON.stringify({
+ *     requestId: 'uuid-here',
+ *     processedBy: 'admin-uuid-here'
+ *   })
+ * })
+ * ```
+ */
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting - 5 requests per 15 minutes per IP

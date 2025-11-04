@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Megaphone, Pin, Calendar, Filter, Search } from "lucide-react"
+import { Plus, Megaphone, Pin, Calendar, Filter, Search, ChevronDown, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { getAnnouncements } from "@/lib/supabase/queries"
@@ -39,6 +39,7 @@ export default function AnnouncementsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
+  const [expandedAnnouncements, setExpandedAnnouncements] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
@@ -56,6 +57,18 @@ export default function AnnouncementsPage() {
 
     loadAnnouncements()
   }, [user])
+
+  const toggleAnnouncement = (announcementId: string) => {
+    setExpandedAnnouncements(prev => {
+      const next = new Set(prev)
+      if (next.has(announcementId)) {
+        next.delete(announcementId)
+      } else {
+        next.add(announcementId)
+      }
+      return next
+    })
+  }
 
   const filteredAnnouncements = announcements.filter(ann => {
     const matchesSearch = ann.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -158,32 +171,56 @@ export default function AnnouncementsPage() {
                   <Pin className="h-5 w-5" />
                   Pinned
                 </h2>
-                {pinnedAnnouncements.map((announcement) => (
-                  <Card key={announcement.id} className="border-l-4 border-l-blue-500">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="flex items-center gap-2">
-                            {announcement.title}
-                            <Pin className="h-4 w-4 text-blue-500" />
-                          </CardTitle>
-                          <CardDescription className="mt-1 flex items-center gap-4">
-                            <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
-                            <Badge className={typeColors[announcement.type] || 'bg-gray-100'}>
-                              {announcement.type}
-                            </Badge>
-                            <Badge className={priorityColors[announcement.priority] || 'bg-gray-100'}>
-                              {announcement.priority}
-                            </Badge>
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="whitespace-pre-wrap">{announcement.content}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                {pinnedAnnouncements.map((announcement) => {
+                  const isExpanded = expandedAnnouncements.has(announcement.id)
+                  return (
+                    <Card key={announcement.id} className="border-l-4 border-l-blue-500">
+                      <button
+                        onClick={() => toggleAnnouncement(announcement.id)}
+                        className="w-full text-left"
+                      >
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <CardTitle className="flex items-center gap-2">
+                                {announcement.title}
+                                <Pin className="h-4 w-4 text-blue-500" />
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                                )}
+                              </CardTitle>
+                              <CardDescription className="mt-1 flex items-center gap-4">
+                                <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                                <Badge className={typeColors[announcement.type] || 'bg-gray-100'}>
+                                  {announcement.type}
+                                </Badge>
+                                <Badge className={priorityColors[announcement.priority] || 'bg-gray-100'}>
+                                  {announcement.priority}
+                                </Badge>
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </button>
+                      <CardContent>
+                        {isExpanded ? (
+                          <div className="pt-2">
+                            <p className="whitespace-pre-wrap">{announcement.content}</p>
+                            {announcement.created_by && (
+                              <p className="text-xs text-muted-foreground mt-4">
+                                Created by: {announcement.created_by}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap line-clamp-3">{announcement.content}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             )}
 
@@ -193,29 +230,55 @@ export default function AnnouncementsPage() {
                 {pinnedAnnouncements.length > 0 && (
                   <h2 className="text-lg font-semibold mt-6">All Announcements</h2>
                 )}
-                {regularAnnouncements.map((announcement) => (
-                  <Card key={announcement.id}>
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle>{announcement.title}</CardTitle>
-                          <CardDescription className="mt-1 flex items-center gap-4">
-                            <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
-                            <Badge className={typeColors[announcement.type] || 'bg-gray-100'}>
-                              {announcement.type}
-                            </Badge>
-                            <Badge className={priorityColors[announcement.priority] || 'bg-gray-100'}>
-                              {announcement.priority}
-                            </Badge>
-                          </CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="whitespace-pre-wrap">{announcement.content}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+                {regularAnnouncements.map((announcement) => {
+                  const isExpanded = expandedAnnouncements.has(announcement.id)
+                  return (
+                    <Card key={announcement.id}>
+                      <button
+                        onClick={() => toggleAnnouncement(announcement.id)}
+                        className="w-full text-left"
+                      >
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <CardTitle className="flex items-center gap-2">
+                                {announcement.title}
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                                )}
+                              </CardTitle>
+                              <CardDescription className="mt-1 flex items-center gap-4">
+                                <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                                <Badge className={typeColors[announcement.type] || 'bg-gray-100'}>
+                                  {announcement.type}
+                                </Badge>
+                                <Badge className={priorityColors[announcement.priority] || 'bg-gray-100'}>
+                                  {announcement.priority}
+                                </Badge>
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </button>
+                      <CardContent>
+                        {isExpanded ? (
+                          <div className="pt-2">
+                            <p className="whitespace-pre-wrap">{announcement.content}</p>
+                            {announcement.created_by && (
+                              <p className="text-xs text-muted-foreground mt-4">
+                                Created by: {announcement.created_by}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap line-clamp-3">{announcement.content}</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </div>

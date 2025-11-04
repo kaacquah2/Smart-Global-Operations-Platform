@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { 
   Building2, 
   Users, 
@@ -17,7 +18,13 @@ import {
   DollarSign,
   Scale,
   Shield,
-  Package
+  Package,
+  ChevronDown,
+  ChevronRight,
+  Mail,
+  Phone,
+  MapPin,
+  Eye
 } from "lucide-react"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/lib/auth-context"
@@ -27,6 +34,13 @@ import { Breadcrumbs } from "@/components/breadcrumbs"
 import { EmptyState } from "@/components/empty-state"
 import { ListSkeleton } from "@/components/loading-skeleton"
 import Link from "next/link"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +53,11 @@ export default function OrganizationPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set())
+  const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set())
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null)
+  const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false)
+  const [branchFilter, setBranchFilter] = useState<string>('all')
 
   // Memoize the load function
   const loadData = useCallback(async (forceRefresh = false) => {
@@ -107,6 +126,60 @@ export default function OrganizationPage() {
     return filtered
   }, [users, searchQuery, filterDepartment, user])
 
+  // Get employees for a department
+  const getDepartmentEmployees = (deptName: string) => {
+    return users.filter(u => u.department === deptName && u.is_active)
+  }
+
+  // Get departments for a branch
+  const getBranchDepartments = (branchName: string) => {
+    return departments.filter(d => d.branch?.name === branchName)
+  }
+
+  // Get employees for a branch
+  const getBranchEmployees = (branchName: string) => {
+    return users.filter(u => u.branch === branchName && u.is_active)
+  }
+
+  const toggleDepartment = (deptId: string) => {
+    setExpandedDepartments(prev => {
+      const next = new Set(prev)
+      if (next.has(deptId)) {
+        next.delete(deptId)
+      } else {
+        next.add(deptId)
+      }
+      return next
+    })
+  }
+
+  const toggleBranch = (branchId: string) => {
+    setExpandedBranches(prev => {
+      const next = new Set(prev)
+      if (next.has(branchId)) {
+        next.delete(branchId)
+      } else {
+        next.add(branchId)
+      }
+      return next
+    })
+  }
+
+  const handleEmployeeClick = (employee: any) => {
+    setSelectedEmployee(employee)
+    setEmployeeDialogOpen(true)
+  }
+
+  // Filter departments and branches
+  const filteredDepartments = useMemo(() => {
+    if (branchFilter === 'all') return departments
+    return departments.filter(d => d.branch?.name === branchFilter)
+  }, [departments, branchFilter])
+
+  const filteredBranches = useMemo(() => {
+    return branches
+  }, [branches])
+
   const quickLinks = [
     { icon: BookOpen, label: 'Policies', href: '/policies', description: 'Company policies' },
     { icon: Megaphone, label: 'Announcements', href: '/announcements', description: 'Company announcements' },
@@ -164,16 +237,31 @@ export default function OrganizationPage() {
           {/* Departments */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Network className="h-5 w-5" />
-                Departments
-              </CardTitle>
-              <CardDescription>{departments.length} departments across all branches</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Network className="h-5 w-5" />
+                    Departments
+                  </CardTitle>
+                  <CardDescription>{departments.length} departments across all branches</CardDescription>
+                </div>
+                <Select value={branchFilter} onValueChange={setBranchFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map(branch => (
+                      <SelectItem key={branch.id} value={branch.name}>{branch.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <ListSkeleton items={5} />
-              ) : departments.length === 0 ? (
+              ) : filteredDepartments.length === 0 ? (
                 <EmptyState
                   icon={Network}
                   title="No departments"
@@ -181,14 +269,64 @@ export default function OrganizationPage() {
                 />
               ) : (
                 <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {departments.map((dept) => (
-                    <div key={dept.id} className="p-3 border rounded-lg">
-                      <p className="font-semibold">{dept.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {dept.branch?.name || 'Unknown Branch'}
-                      </p>
-                    </div>
-                  ))}
+                  {filteredDepartments.map((dept) => {
+                    const isExpanded = expandedDepartments.has(dept.id)
+                    const deptEmployees = getDepartmentEmployees(dept.name)
+                    return (
+                      <div key={dept.id} className="border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleDepartment(dept.id)}
+                          className="w-full p-3 text-left hover:bg-accent/50 transition-colors flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <p className="font-semibold">{dept.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {dept.branch?.name || 'Unknown Branch'} • {deptEmployees.length} employees
+                            </p>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        {isExpanded && deptEmployees.length > 0 && (
+                          <div className="border-t bg-card/50 p-3 space-y-2 max-h-60 overflow-y-auto">
+                            {deptEmployees.slice(0, 10).map((emp) => (
+                              <button
+                                key={emp.id}
+                                onClick={() => handleEmployeeClick(emp)}
+                                className="w-full p-2 rounded hover:bg-accent/50 transition-colors text-left"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {emp.avatar ? (
+                                    <img
+                                      src={emp.avatar}
+                                      alt={emp.name}
+                                      className="h-8 w-8 rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                      <Users className="h-4 w-4 text-primary" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{emp.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{emp.position}</p>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                            {deptEmployees.length > 10 && (
+                              <p className="text-xs text-muted-foreground text-center pt-2">
+                                +{deptEmployees.length - 10} more employees
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
@@ -206,22 +344,81 @@ export default function OrganizationPage() {
             <CardContent>
               {loading ? (
                 <ListSkeleton items={3} />
-              ) : branches.length === 0 ? (
+              ) : filteredBranches.length === 0 ? (
                 <EmptyState
                   icon={Building2}
                   title="No branches"
                   description="Branch locations will appear here"
                 />
               ) : (
-                <div className="space-y-2">
-                  {branches.map((branch) => (
-                    <div key={branch.id} className="p-3 border rounded-lg">
-                      <p className="font-semibold">{branch.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {branch.city}, {branch.country}
-                      </p>
-                    </div>
-                  ))}
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {filteredBranches.map((branch) => {
+                    const isExpanded = expandedBranches.has(branch.id)
+                    const branchDepts = getBranchDepartments(branch.name)
+                    const branchEmployees = getBranchEmployees(branch.name)
+                    return (
+                      <div key={branch.id} className="border rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => toggleBranch(branch.id)}
+                          className="w-full p-3 text-left hover:bg-accent/50 transition-colors flex items-center justify-between"
+                        >
+                          <div className="flex-1">
+                            <p className="font-semibold">{branch.name}</p>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                              <MapPin className="h-3 w-3" />
+                              {branch.city}, {branch.country}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {branchDepts.length} departments • {branchEmployees.length} employees
+                            </p>
+                          </div>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        {isExpanded && (
+                          <div className="border-t bg-card/50 p-3 space-y-3">
+                            {branchDepts.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground mb-2">Departments:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {branchDepts.map(dept => (
+                                    <Badge key={dept.id} variant="outline" className="text-xs">
+                                      {dept.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {branchEmployees.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold text-muted-foreground mb-2">Employees ({branchEmployees.length}):</p>
+                                <div className="space-y-1 max-h-40 overflow-y-auto">
+                                  {branchEmployees.slice(0, 5).map(emp => (
+                                    <button
+                                      key={emp.id}
+                                      onClick={() => handleEmployeeClick(emp)}
+                                      className="w-full text-left p-2 rounded hover:bg-accent/50 transition-colors text-xs"
+                                    >
+                                      <p className="font-medium">{emp.name}</p>
+                                      <p className="text-muted-foreground">{emp.position} • {emp.department}</p>
+                                    </button>
+                                  ))}
+                                  {branchEmployees.length > 5 && (
+                                    <p className="text-xs text-muted-foreground text-center pt-1">
+                                      +{branchEmployees.length - 5} more employees
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </CardContent>
@@ -282,7 +479,11 @@ export default function OrganizationPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredUsers.map((employee) => (
-                  <div key={employee.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  <button
+                    key={employee.id}
+                    onClick={() => handleEmployeeClick(employee)}
+                    className="p-4 border rounded-lg hover:shadow-md transition-all text-left hover:border-accent"
+                  >
                     <div className="flex items-center gap-3">
                       {employee.avatar ? (
                         <img
@@ -299,14 +500,93 @@ export default function OrganizationPage() {
                         <p className="font-semibold truncate">{employee.name}</p>
                         <p className="text-sm text-muted-foreground truncate">{employee.position}</p>
                         <p className="text-xs text-muted-foreground truncate">{employee.department}</p>
+                        <Badge variant="outline" className="text-xs mt-1">
+                          {employee.branch}
+                        </Badge>
                       </div>
+                      <Eye className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Employee Detail Dialog */}
+        <Dialog open={employeeDialogOpen} onOpenChange={setEmployeeDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Employee Details</DialogTitle>
+              <DialogDescription>
+                View employee information and contact details
+              </DialogDescription>
+            </DialogHeader>
+            {selectedEmployee && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  {selectedEmployee.avatar ? (
+                    <img
+                      src={selectedEmployee.avatar}
+                      alt={selectedEmployee.name}
+                      className="h-16 w-16 rounded-full"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-8 w-8 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-lg font-semibold">{selectedEmployee.name}</h3>
+                    <p className="text-sm text-muted-foreground">{selectedEmployee.position}</p>
+                  </div>
+                </div>
+                <div className="grid gap-3 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedEmployee.email}</span>
+                  </div>
+                  {selectedEmployee.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{selectedEmployee.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Network className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedEmployee.department}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{selectedEmployee.branch}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{selectedEmployee.role}</Badge>
+                    <Badge variant={selectedEmployee.is_active ? 'default' : 'secondary'}>
+                      {selectedEmployee.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <Link href={`/messages`}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send Message
+                    </Link>
+                  </Button>
+                  {user && ['admin', 'executive', 'ceo'].includes(user.role || '') && (
+                    <Button variant="outline" className="flex-1" asChild>
+                      <Link href={`/admin/employees/${selectedEmployee.id}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Profile
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </LayoutWithSidebar>
   )

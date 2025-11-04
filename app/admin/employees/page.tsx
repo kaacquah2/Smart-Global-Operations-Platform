@@ -3,6 +3,7 @@
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import React from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,10 +19,21 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
+  ChevronDown,
+  ChevronRight,
+  Mail,
+  Phone,
 } from "lucide-react"
 import type { User } from "@/lib/types"
 import Link from "next/link"
 import { SidebarLayout } from "@/components/sidebar-layout"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function AdminEmployeesPage() {
   const { user, isLoggedIn } = useAuth()
@@ -31,6 +43,11 @@ export default function AdminEmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterRole, setFilterRole] = useState<string>("all")
   const [filterDept, setFilterDept] = useState<string>("all")
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null)
+  const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn || user?.role !== "admin") {
@@ -40,6 +57,7 @@ export default function AdminEmployeesPage() {
     const loadEmployees = async () => {
       const users = await getAllUsers()
       setEmployees(users)
+      setCurrentPage(1) // Reset to first page when data changes
     }
     loadEmployees()
   }, [user, isLoggedIn, router, getAllUsers])
@@ -53,6 +71,41 @@ export default function AdminEmployeesPage() {
 
     return matchesSearch && matchesRole && matchesDept
   })
+
+  // Pagination
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex)
+  
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const toggleRowExpand = (empId: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(empId)) {
+        next.delete(empId)
+      } else {
+        next.add(empId)
+      }
+      return next
+    })
+  }
+
+  const handleEmployeeView = (emp: User) => {
+    setSelectedEmployee(emp)
+    setEmployeeDialogOpen(true)
+  }
 
   const handleDeleteEmployee = (empId: string) => {
     if (confirm("Are you sure you want to delete this employee?")) {
@@ -209,7 +262,36 @@ export default function AdminEmployeesPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Actions</label>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="gap-2 flex-1 bg-transparent">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 flex-1 bg-transparent"
+                      onClick={() => {
+                        // Export functionality
+                        const csv = [
+                          ['Name', 'Email', 'Position', 'Department', 'Role', 'Branch', 'Status'].join(','),
+                          ...filteredEmployees.map(emp => 
+                            [
+                              emp.name,
+                              emp.email,
+                              emp.position || '',
+                              emp.department,
+                              emp.role,
+                              emp.branch,
+                              emp.is_active ? 'Active' : 'Inactive'
+                            ].join(',')
+                          )
+                        ].join('\n')
+                        
+                        const blob = new Blob([csv], { type: 'text/csv' })
+                        const url = window.URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `employees-export-${new Date().toISOString().split('T')[0]}.csv`
+                        a.click()
+                        window.URL.revokeObjectURL(url)
+                      }}
+                    >
                       <Download className="h-4 w-4" />
                       Export
                     </Button>
@@ -244,74 +326,132 @@ export default function AdminEmployeesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredEmployees.map((emp) => (
-                      <tr key={emp.id} className="border-b border-border/50 hover:bg-accent/5 transition">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold text-accent">
-                              {emp.name.charAt(0)}
-                            </div>
-                            <span className="font-medium text-foreground">{emp.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="text-sm text-muted-foreground">{emp.email}</span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="text-sm text-foreground">{emp.position}</span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="text-sm text-foreground">{emp.department}</span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span
-                            className={`inline-block px-2 py-1 rounded text-xs font-medium ${getRoleColor(emp.role)}`}
+                    {paginatedEmployees.map((emp) => {
+                      const isExpanded = expandedRows.has(emp.id)
+                      return (
+                        <React.Fragment key={emp.id}>
+                          <tr 
+                            className="border-b border-border/50 hover:bg-accent/5 transition cursor-pointer"
+                            onClick={() => toggleRowExpand(emp.id)}
                           >
-                            {getRoleLabel(emp.role)}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className="text-sm text-muted-foreground">{emp.branch}</span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span
-                            className={`inline-flex items-center gap-1 text-xs font-medium ${emp.is_active ? "text-green-600" : "text-red-600"}`}
-                          >
-                            <span className={`w-2 h-2 rounded-full ${emp.is_active ? "bg-green-600" : "bg-red-600"}`} />
-                            {emp.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-foreground"
-                              title="View details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-accent"
-                              title="Edit employee"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-destructive"
-                              onClick={() => handleDeleteEmployee(emp.id)}
-                              title="Delete employee"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold text-accent">
+                                  {emp.name.charAt(0)}
+                                </div>
+                                <span className="font-medium text-foreground">{emp.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="text-sm text-muted-foreground">{emp.email}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="text-sm text-foreground">{emp.position}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="text-sm text-foreground">{emp.department}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span
+                                className={`inline-block px-2 py-1 rounded text-xs font-medium ${getRoleColor(emp.role)}`}
+                              >
+                                {getRoleLabel(emp.role)}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="text-sm text-muted-foreground">{emp.branch}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs font-medium ${emp.is_active ? "text-green-600" : "text-red-600"}`}
+                              >
+                                <span className={`w-2 h-2 rounded-full ${emp.is_active ? "bg-green-600" : "bg-red-600"}`} />
+                                {emp.is_active ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="View details"
+                                  onClick={() => handleEmployeeView(emp)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-muted-foreground hover:text-accent"
+                                  title="Edit employee"
+                                  onClick={() => router.push(`/admin/employees/${emp.id}/edit`)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleDeleteEmployee(emp.id)}
+                                  title="Delete employee"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="border-b border-border/50 bg-accent/5">
+                              <td colSpan={8} className="py-4 px-4">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Email</p>
+                                    <p className="text-sm text-foreground flex items-center gap-1">
+                                      <Mail className="h-3 w-3" />
+                                      {emp.email}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Position</p>
+                                    <p className="text-sm text-foreground">{emp.position || 'N/A'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Department</p>
+                                    <p className="text-sm text-foreground">{emp.department}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Branch</p>
+                                    <p className="text-sm text-foreground">{emp.branch || 'N/A'}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 mt-4 pt-4 border-t">
+                                  <Button variant="outline" size="sm" onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleEmployeeView(emp)
+                                  }}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Full Details
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/admin/employees/${emp.id}/edit`)
+                                  }}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Employee
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -322,18 +462,109 @@ export default function AdminEmployeesPage() {
         {/* Pagination Info */}
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <p>
-            Showing {filteredEmployees.length} of {employees.length} employees
+            Showing {startIndex + 1}-{Math.min(endIndex, filteredEmployees.length)} of {filteredEmployees.length} employees
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+            >
               Previous
             </Button>
-            <Button variant="outline" size="sm">
+            <span className="text-sm">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage >= totalPages}
+            >
               Next
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Employee Detail Dialog */}
+      <Dialog open={employeeDialogOpen} onOpenChange={setEmployeeDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedEmployee?.name || 'Employee Details'}</DialogTitle>
+            <DialogDescription>
+              View detailed information about the employee
+            </DialogDescription>
+          </DialogHeader>
+          {selectedEmployee && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center text-2xl font-bold text-accent">
+                  {selectedEmployee.name.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedEmployee.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedEmployee.position || 'No position'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Email</p>
+                  <p className="text-sm text-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {selectedEmployee.email}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Role</p>
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${getRoleColor(selectedEmployee.role)}`}>
+                    {getRoleLabel(selectedEmployee.role)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Department</p>
+                  <p className="text-sm text-foreground">{selectedEmployee.department}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Branch</p>
+                  <p className="text-sm text-foreground">{selectedEmployee.branch || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Status</p>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium ${selectedEmployee.is_active ? "text-green-600" : "text-red-600"}`}>
+                    <span className={`w-2 h-2 rounded-full ${selectedEmployee.is_active ? "bg-green-600" : "bg-red-600"}`} />
+                    {selectedEmployee.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Position</p>
+                  <p className="text-sm text-foreground">{selectedEmployee.position || 'N/A'}</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => {
+                  setEmployeeDialogOpen(false)
+                  router.push(`/admin/employees/${selectedEmployee.id}`)
+                }}>
+                  View Full Profile
+                </Button>
+                <Button variant="outline" className="flex-1" onClick={() => {
+                  setEmployeeDialogOpen(false)
+                  router.push(`/admin/employees/${selectedEmployee.id}/edit`)
+                }}>
+                  Edit Employee
+                </Button>
+                <Button variant="outline" onClick={() => setEmployeeDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </SidebarLayout>
   )
 }

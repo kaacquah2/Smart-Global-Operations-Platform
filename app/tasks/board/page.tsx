@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Plus, GripVertical, Clock } from "lucide-react"
 import SidebarLayout from "@/components/sidebar-layout"
+import { useRouter } from "next/navigation"
 
 interface TaskCard {
   id: string
@@ -25,6 +26,7 @@ interface Column {
 }
 
 export default function KanbanBoard() {
+  const router = useRouter()
   const [columns, setColumns] = useState<Column[]>([
     {
       id: "todo",
@@ -216,7 +218,10 @@ export default function KanbanBoard() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Task Board</h1>
             <p className="text-muted-foreground mt-1 text-sm md:text-base">Drag and drop to organize your work</p>
           </div>
-          <Button className="gap-2 w-full sm:w-auto">
+          <Button 
+            className="gap-2 w-full sm:w-auto"
+            onClick={() => router.push('/tasks')}
+          >
             <Plus className="h-4 w-4" />
             New Task
           </Button>
@@ -238,7 +243,10 @@ export default function KanbanBoard() {
                   <TaskCardComponent key={task.id} task={task} />
                 ))}
 
-                <button className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-accent transition-colors text-muted-foreground hover:text-accent text-sm font-medium">
+                <button 
+                  className="w-full p-3 rounded-lg border-2 border-dashed border-border hover:border-accent transition-colors text-muted-foreground hover:text-accent text-sm font-medium"
+                  onClick={() => router.push('/tasks')}
+                >
                   <Plus className="h-4 w-4 mx-auto" />
                 </button>
               </div>

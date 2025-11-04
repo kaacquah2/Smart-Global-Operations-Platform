@@ -4,12 +4,19 @@ import { LayoutWithSidebar } from "@/app/layout-with-sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, FileText, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from "lucide-react"
+import { Plus, FileText, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronRight, Eye } from "lucide-react"
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { getPurchaseRequests, subscribeToPurchaseRequests } from "@/lib/supabase/queries"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +42,9 @@ export default function PurchasesPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [lastFetchTime, setLastFetchTime] = useState<number>(0)
+  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set())
+  const [selectedRequest, setSelectedRequest] = useState<any | null>(null)
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
 
   // Check if user can see full details of a request
   const canSeeFullDetails = (request: any) => {
@@ -166,6 +176,25 @@ export default function PurchasesPage() {
     }
   }, [user?.id, loadRequests])
 
+  const toggleRequestExpand = (requestId: string) => {
+    setExpandedRequests(prev => {
+      const next = new Set(prev)
+      if (next.has(requestId)) {
+        next.delete(requestId)
+      } else {
+        next.add(requestId)
+      }
+      return next
+    })
+  }
+
+  const handleRequestPreview = (request: any, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setSelectedRequest(request)
+    setPreviewDialogOpen(true)
+  }
+
   // Filter requests based on status
   const filteredRequests = useMemo(() => {
     if (filterStatus === 'all') {
@@ -291,23 +320,35 @@ export default function PurchasesPage() {
               const hasFullAccess = canSeeFullDetails(request)
               const isFromOtherDepartment = request.requestor?.department !== user?.department && 
                                             request.requestor_id !== user?.id
+              const isExpanded = expandedRequests.has(request.id)
               
               return (
-                <Link key={request.id} href={`/purchases/${request.id}`}>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <Card 
+                  key={request.id} 
+                  className="hover:shadow-md transition-all cursor-pointer border-border"
+                >
+                  <button
+                    onClick={() => toggleRequestExpand(request.id)}
+                    className="w-full text-left"
+                  >
                     <CardHeader>
                       <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg flex items-center gap-2">
                             {hasFullAccess ? request.title : 'Purchase Request'}
                             {!hasFullAccess && isFromOtherDepartment && (
-                              <span className="text-xs text-muted-foreground ml-2">
+                              <span className="text-xs text-muted-foreground">
                                 (Other Department)
                               </span>
                             )}
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
                           </CardTitle>
                           {hasFullAccess ? (
-                            <CardDescription className="mt-1">
+                            <CardDescription className="mt-1 line-clamp-2">
                               {request.description?.substring(0, 100)}...
                             </CardDescription>
                           ) : (
@@ -322,54 +363,187 @@ export default function PurchasesPage() {
                         </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      {hasFullAccess ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Estimated Cost</div>
-                            <div className="font-semibold">${parseFloat(request.estimated_cost || 0).toLocaleString()} {request.currency || 'USD'}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Category</div>
-                            <div className="font-semibold capitalize">{request.category}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Urgency</div>
-                            <div className="font-semibold capitalize">{request.urgency || 'Normal'}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Created</div>
-                            <div className="font-semibold">
-                              {new Date(request.created_at).toLocaleDateString()}
+                  </button>
+                  <CardContent>
+                    {isExpanded ? (
+                      <div className="space-y-4 pt-4 border-t">
+                        {hasFullAccess ? (
+                          <>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div>
+                                <div className="text-muted-foreground">Estimated Cost</div>
+                                <div className="font-semibold">${parseFloat(request.estimated_cost || 0).toLocaleString()} {request.currency || 'USD'}</div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Category</div>
+                                <div className="font-semibold capitalize">{request.category}</div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Urgency</div>
+                                <div className="font-semibold capitalize">{request.urgency || 'Normal'}</div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Created</div>
+                                <div className="font-semibold">
+                                  {new Date(request.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
+                            </div>
+                            {request.description && (
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-2">Full Description</p>
+                                <p className="text-sm text-foreground whitespace-pre-wrap">{request.description}</p>
+                              </div>
+                            )}
+                            {request.requestor && (
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-2">Requestor</p>
+                                <p className="text-sm text-foreground">{request.requestor.name} ({request.requestor.department})</p>
+                              </div>
+                            )}
+                            <div className="flex gap-2 pt-2">
+                              <Button variant="outline" size="sm" onClick={(e) => handleRequestPreview(request, e)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Quick Preview
+                              </Button>
+                              <Button variant="outline" size="sm" asChild>
+                                <Link href={`/purchases/${request.id}`}>
+                                  View Details
+                                </Link>
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-muted-foreground">Status</div>
+                              <div className="font-semibold">{statusConfig[request.status]?.label || request.status}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Requestor Department</div>
+                              <div className="font-semibold">{request.requestor?.department || 'Unknown'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Created</div>
+                              <div className="font-semibold">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <div className="text-muted-foreground">Status</div>
-                            <div className="font-semibold">{statusConfig[request.status]?.label || request.status}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Requestor Department</div>
-                            <div className="font-semibold">{request.requestor?.department || 'Unknown'}</div>
-                          </div>
-                          <div>
-                            <div className="text-muted-foreground">Created</div>
-                            <div className="font-semibold">
-                              {new Date(request.created_at).toLocaleDateString()}
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        {hasFullAccess ? (
+                          <>
+                            <div>
+                              <div className="text-muted-foreground">Estimated Cost</div>
+                              <div className="font-semibold">${parseFloat(request.estimated_cost || 0).toLocaleString()} {request.currency || 'USD'}</div>
                             </div>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
+                            <div>
+                              <div className="text-muted-foreground">Category</div>
+                              <div className="font-semibold capitalize">{request.category}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Urgency</div>
+                              <div className="font-semibold capitalize">{request.urgency || 'Normal'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Created</div>
+                              <div className="font-semibold">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <div className="text-muted-foreground">Status</div>
+                              <div className="font-semibold">{statusConfig[request.status]?.label || request.status}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Requestor Department</div>
+                              <div className="font-semibold">{request.requestor?.department || 'Unknown'}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Created</div>
+                              <div className="font-semibold">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Purchase Request Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedRequest?.title || 'Purchase Request'}</DialogTitle>
+            <DialogDescription>
+              Quick preview of purchase request details
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRequest && (
+            <div className="space-y-4">
+              <div>
+                <Badge className={statusConfig[selectedRequest.status]?.color || 'bg-gray-500'}>
+                  {statusConfig[selectedRequest.status]?.label || selectedRequest.status}
+                </Badge>
+              </div>
+              {selectedRequest.description && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Description</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{selectedRequest.description}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Estimated Cost</p>
+                  <p className="font-semibold">${parseFloat(selectedRequest.estimated_cost || 0).toLocaleString()} {selectedRequest.currency || 'USD'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Category</p>
+                  <p className="font-semibold capitalize">{selectedRequest.category}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Urgency</p>
+                  <p className="font-semibold capitalize">{selectedRequest.urgency || 'Normal'}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Created</p>
+                  <p className="font-semibold">{new Date(selectedRequest.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+              {selectedRequest.requestor && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Requestor</p>
+                  <p className="text-sm text-foreground">{selectedRequest.requestor.name}</p>
+                  <p className="text-xs text-muted-foreground">{selectedRequest.requestor.department}</p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-4">
+                <Button variant="outline" className="flex-1" asChild>
+                  <Link href={`/purchases/${selectedRequest.id}`}>
+                    View Full Details
+                  </Link>
+                </Button>
+                <Button variant="outline" onClick={() => setPreviewDialogOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </LayoutWithSidebar>
   )
 }
