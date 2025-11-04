@@ -22,7 +22,8 @@ import {
   Zap,
   Activity,
   PieChart,
-  Calendar
+  Calendar,
+  KeyRound
 } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback, useMemo } from "react"
@@ -183,6 +184,15 @@ export default function AdminDashboard() {
       href: "/admin/reports",
       color: "text-teal-600",
       bgColor: "bg-teal-100 dark:bg-teal-900"
+    },
+    {
+      icon: KeyRound,
+      title: "Password Resets",
+      description: "Process and manage password reset requests",
+      count: "Reset requests",
+      href: "/admin/password-resets",
+      color: "text-amber-600",
+      bgColor: "bg-amber-100 dark:bg-amber-900"
     }
   ]
 
@@ -195,16 +205,16 @@ export default function AdminDashboard() {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="mx-auto max-w-7xl">
           {/* Header */}
-          <div className="mb-8 flex justify-between items-start">
+          <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
-              <h1 className="mb-2 text-3xl font-bold text-foreground flex items-center gap-2">
-                <Shield className="h-8 w-8 text-accent" />
+              <h1 className="mb-2 text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
+                <Shield className="h-6 w-6 md:h-8 md:w-8 text-accent" />
                 Administrator Dashboard
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm md:text-base text-muted-foreground">
                 Manage all aspects of the SGOAP system
               </p>
             </div>
@@ -213,6 +223,7 @@ export default function AdminDashboard() {
               size="sm"
               onClick={() => loadData(true)}
               disabled={refreshing || loading}
+              className="w-full sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -279,9 +290,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Admin Responsibilities */}
-          <div className="mb-8">
-            <h2 className="mb-4 text-2xl font-semibold text-foreground flex items-center gap-2">
-              <Activity className="h-6 w-6 text-accent" />
+          <div className="mb-6 md:mb-8">
+            <h2 className="mb-4 text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+              <Activity className="h-5 w-5 md:h-6 md:w-6 text-accent" />
               Your Responsibilities
             </h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -330,7 +341,7 @@ export default function AdminDashboard() {
                   <div className="text-center py-8">Loading tasks...</div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <div className="text-center p-4 rounded-lg bg-green-100 dark:bg-green-900">
                         <div className="text-2xl font-bold text-green-600">{stats.tasks.completed}</div>
                         <div className="text-xs text-muted-foreground mt-1">Completed</div>

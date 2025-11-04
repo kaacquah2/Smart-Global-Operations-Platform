@@ -210,19 +210,19 @@ export default function KanbanBoard() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-8">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6 md:space-y-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Task Board</h1>
-            <p className="text-muted-foreground mt-1">Drag and drop to organize your work</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Task Board</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Drag and drop to organize your work</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             New Task
           </Button>
         </div>
 
-        <div className="grid grid-cols-4 gap-6 pb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 pb-6 overflow-x-auto">
           {columns.map((column) => (
             <div key={column.id} className="flex flex-col">
               <div className="flex items-center gap-2 mb-4">

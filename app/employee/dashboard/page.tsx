@@ -184,15 +184,15 @@ export default function EmployeeDashboard() {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="mx-auto max-w-7xl">
           {/* Header */}
-          <div className="mb-8 flex justify-between items-start">
+          <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
-              <h1 className="mb-2 text-3xl font-bold text-foreground">
+              <h1 className="mb-2 text-2xl md:text-3xl font-bold text-foreground">
                 Welcome back, {user?.name?.split(" ")[0]}!
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm md:text-base text-muted-foreground">
                 Your personal portal for {user?.department} at {user?.branch}
               </p>
             </div>
@@ -201,6 +201,7 @@ export default function EmployeeDashboard() {
               size="sm"
               onClick={() => loadData(true)}
               disabled={refreshing || loading}
+              className="w-full sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh

@@ -176,21 +176,21 @@ export default function Tasks() {
     <LayoutWithSidebar>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30 px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30 px-4 md:px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Task Management</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Track and manage all operational tasks</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Task Management</h1>
+              <p className="mt-1 text-xs md:text-sm text-muted-foreground">Track and manage all operational tasks</p>
             </div>
-            <Button className="gap-2">
+            <Button className="gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               New Task
             </Button>
           </div>
 
           {/* Search and Filter */}
-          <div className="flex gap-3 items-center">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
@@ -223,13 +223,13 @@ export default function Tasks() {
               </div>
             </div>
           ) : null}
-          <div className="p-6 space-y-6">
+          <div className="p-4 md:p-6 space-y-6">
             {loading ? (
               null
             ) : (
               <>
                 {/* Status Cards */}
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
                   <Card className="p-4">
                     <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
                     <p className="mt-2 text-3xl font-bold text-foreground">{stats.total}</p>
@@ -261,35 +261,35 @@ export default function Tasks() {
                 const StatusIcon = statusInfo.icon
 
                 return (
-                  <Card key={task.id} className="p-6 hover:shadow-lg transition-shadow">
+                  <Card key={task.id} className="p-4 md:p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-4 flex-1">
+                      <div className="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
                         <div
                           className={`mt-1 h-10 w-10 flex items-center justify-center rounded-lg flex-shrink-0 ${statusInfo.color}`}
                         >
                           <StatusIcon className={`h-5 w-5 ${statusInfo.textColor}`} />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-foreground">{task.title}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">{task.description}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base md:text-lg font-semibold text-foreground break-words">{task.title}</h3>
+                          <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">{task.description}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="flex-shrink-0">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      <div className={`inline-flex items-center gap-1.5 rounded-full ${priorityInfo.color} px-3 py-1`}>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full ${priorityInfo.color} px-2 md:px-3 py-1`}>
                         <Tag className="h-3 w-3" />
                         <span className={`text-xs font-medium ${priorityInfo.textColor}`}>{priorityInfo.label}</span>
                       </div>
-                      <div className={`inline-flex items-center gap-1.5 rounded-full ${statusInfo.color} px-3 py-1`}>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full ${statusInfo.color} px-2 md:px-3 py-1`}>
                         <span className={`text-xs font-medium ${statusInfo.textColor}`}>{statusInfo.label}</span>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-4 mb-4 pb-4 border-b border-border">
+                    <div className="grid gap-3 md:gap-4 grid-cols-2 md:grid-cols-4 mb-4 pb-4 border-b border-border">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div>

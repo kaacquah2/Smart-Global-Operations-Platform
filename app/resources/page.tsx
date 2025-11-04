@@ -90,21 +90,21 @@ export default function ResourcesPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Resource Allocation</h1>
-            <p className="text-muted-foreground mt-1">Optimize your team's workload and capacity</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Resource Allocation</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Optimize your team's workload and capacity</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Zap className="h-4 w-4" />
             Optimize Resources
           </Button>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border-border/50 bg-card/50">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -160,7 +160,7 @@ export default function ResourcesPage() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Utilization Trend */}
           <Card className="border-border/50">
             <CardHeader>

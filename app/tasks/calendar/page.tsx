@@ -146,36 +146,36 @@ export default function CalendarView() {
   return (
     <SidebarLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Task Calendar</h1>
-            <p className="text-muted-foreground mt-1">Visualize your tasks and deadlines</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Task Calendar</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Visualize your tasks and deadlines</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2 w-full sm:w-auto">
             <Plus className="h-4 w-4" />
             New Event
           </Button>
         </div>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendar */}
-          <div className="col-span-2">
+          <div className="lg:col-span-2">
             <Card className="border-border/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle>{monthName}</CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={previousMonth}>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0 pb-4 gap-4">
+                <CardTitle className="text-lg md:text-xl">{monthName}</CardTitle>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <Button variant="outline" size="sm" onClick={previousMonth} className="flex-1 sm:flex-none">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={nextMonth}>
+                  <Button variant="outline" size="sm" onClick={nextMonth} className="flex-1 sm:flex-none">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-x-auto">
                   {/* Weekday Headers */}
-                  <div className="grid grid-cols-7 gap-2 mb-2">
+                  <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 min-w-[350px]">
                     {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                       <div key={day} className="text-xs font-semibold text-muted-foreground text-center py-2">
                         {day}
@@ -184,7 +184,7 @@ export default function CalendarView() {
                   </div>
 
                   {/* Calendar Grid */}
-                  <div className="grid grid-cols-7 gap-2">
+                  <div className="grid grid-cols-7 gap-1 md:gap-2 min-w-[350px]">
                     {emptyDays.map((i) => (
                       <div key={`empty-${i}`} className="aspect-square" />
                     ))}

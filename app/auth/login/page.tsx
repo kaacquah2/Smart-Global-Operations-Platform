@@ -8,7 +8,8 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Mail, Lock, Layers, ArrowRight } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Eye, EyeOff, Mail, Lock, Layers, ArrowRight, CheckCircle } from "lucide-react"
 import { APP_NAME, APP_FULL_NAME } from "@/lib/constants"
 
 export default function LoginPage() {
@@ -19,6 +20,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
+  const [forgotPasswordError, setForgotPasswordError] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +39,40 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordLoading(true)
+    setForgotPasswordError("")
+    setForgotPasswordSuccess(false)
+
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to submit password reset request")
+      }
+
+      setForgotPasswordSuccess(true)
+      setTimeout(() => {
+        setForgotPasswordOpen(false)
+        setForgotPasswordEmail("")
+        setForgotPasswordSuccess(false)
+      }, 3000)
+    } catch (err) {
+      setForgotPasswordError(err instanceof Error ? err.message : "Something went wrong. Please try again.")
+    } finally {
+      setForgotPasswordLoading(false)
     }
   }
 
@@ -89,7 +129,11 @@ export default function LoginPage() {
                   <label htmlFor="password" className="text-sm font-medium text-foreground">
                     Password
                   </label>
-                  <button type="button" className="text-xs text-accent hover:underline">
+                  <button 
+                    type="button" 
+                    className="text-xs text-accent hover:underline"
+                    onClick={() => setForgotPasswordOpen(true)}
+                  >
                     Forgot?
                   </button>
                 </div>
@@ -150,6 +194,74 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Forgot Password?</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll notify an administrator to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          {forgotPasswordSuccess ? (
+            <div className="py-6 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="rounded-full bg-green-100 dark:bg-green-900 p-3">
+                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                </div>
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Request Submitted</h3>
+              <p className="text-sm text-muted-foreground">
+                Your password reset request has been sent to administrators. They will process it and send you a new password via email.
+              </p>
+            </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="forgot-email" className="text-sm font-medium text-foreground">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="you@company.com"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              {forgotPasswordError && (
+                <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                  {forgotPasswordError}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setForgotPasswordOpen(false)
+                    setForgotPasswordEmail("")
+                    setForgotPasswordError("")
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={forgotPasswordLoading}>
+                  {forgotPasswordLoading ? "Submitting..." : "Submit Request"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

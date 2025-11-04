@@ -81,15 +81,15 @@ export default function WorkflowsPage() {
 
   return (
     <SidebarLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Workflow Automation</h1>
-            <p className="text-muted-foreground mt-1">Automate tasks and streamline your operations</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Workflow Automation</h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">Automate tasks and streamline your operations</p>
           </div>
           <Link href="/workflows/create">
-            <Button className="gap-2">
+            <Button className="gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Create Workflow
             </Button>
@@ -97,7 +97,7 @@ export default function WorkflowsPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="border-border/50 bg-card/50">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
