@@ -1,3 +1,5 @@
+// @ts-nocheck - Deno Edge Function (not TypeScript Node.js)
+// This file is for Supabase Edge Functions which run in Deno runtime
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { Resend } from 'https://esm.sh/resend@3.2.0'
 
@@ -6,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -63,10 +65,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in send-email function:', error)
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: error?.message || 'Internal server error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

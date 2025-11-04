@@ -17,26 +17,45 @@ const supabase = createClient()
 // =====================================================
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email.toLowerCase())
-    .eq('is_active', true)
-    .single()
-  
-  if (error || !data) return null
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('is_active', true)
+      .maybeSingle()
+    
+    if (error) {
+      console.error('Error fetching user by email:', error)
+      return null
+    }
+    
+    return data || null
+  } catch (err) {
+    console.error('Exception in getUserByEmail:', err)
+    return null
+  }
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', id)
-    .single()
-  
-  if (error || !data) return null
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .eq('is_active', true)
+      .maybeSingle()
+    
+    if (error) {
+      console.error('Error fetching user by id:', error)
+      return null
+    }
+    
+    return data || null
+  } catch (err) {
+    console.error('Exception in getUserById:', err)
+    return null
+  }
 }
 
 export async function getAllUsers(): Promise<User[]> {

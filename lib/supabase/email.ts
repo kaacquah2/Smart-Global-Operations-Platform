@@ -16,12 +16,12 @@ interface SendEmailParams {
 export async function sendEmailViaEdgeFunction(params: SendEmailParams) {
   const supabase = createClient()
   
-  const { data, error } = await supabase.functions.invoke('send-email', {
+  const { data, error } = await supabase.functions.invoke('resend-email', {
     body: params,
   })
 
   if (error) {
-    console.error('Error calling send-email Edge Function:', error)
+    console.error('Error calling resend-email Edge Function:', error)
     throw new Error(error.message || 'Failed to send email')
   }
 
@@ -45,12 +45,12 @@ export async function sendEmailViaEdgeFunctionServer(params: SendEmailParams) {
     }
   )
 
-  const { data, error } = await supabase.functions.invoke('send-email', {
+  const { data, error } = await supabase.functions.invoke('resend-email', {
     body: params,
   })
 
   if (error) {
-    console.error('Error calling send-email Edge Function:', error)
+    console.error('Error calling resend-email Edge Function:', error)
     throw new Error(error.message || 'Failed to send email')
   }
 

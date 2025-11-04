@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { APP_NAME, APP_FULL_NAME, APP_DESCRIPTION } from "@/lib/constants"
 import "./globals.css"
 
@@ -23,10 +24,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
-        <AuthProvider>
-          {children}
-          <Analytics />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            {children}
+            <Analytics />
+          </AuthProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

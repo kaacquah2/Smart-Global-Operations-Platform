@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { APP_NAME, APP_FULL_NAME } from '@/lib/constants'
+import { getLoginUrl } from '@/lib/url-utils'
+import { 
+  parseRequestBody, 
+  validateRequiredFields,
+  validateEmail,
+  sanitizeEmail,
+  sanitizeString,
+  createErrorResponse,
+  createSuccessResponse,
+  handleApiError,
+  getClientIP
+} from '@/lib/api-utils'
+import { rateLimitMiddleware } from '@/lib/rate-limit'
 
 // Generate a secure temporary password
 function generateTemporaryPassword(): string {
@@ -118,38 +131,61 @@ async function sendCredentialsEmail(
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, name, tempPassword } = body
+    // Rate limiting - 10 requests per minute per IP
+    const rateLimit = rateLimitMiddleware(10, 60 * 1000)
+    const rateLimitResult = rateLimit(request, getClientIP(request))
     
-    if (!email || !name || !tempPassword) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response as NextResponse
+    }
+
+    // Parse request body
+    const { data: body, error: parseError } = await parseRequestBody(request)
+    if (parseError || !body) {
+      return createErrorResponse(parseError || 'Invalid request body', 400)
+    }
+
+    // Validate required fields
+    const requiredValidation = validateRequiredFields(body, ['email', 'name', 'tempPassword'])
+    if (!requiredValidation.isValid) {
+      return createErrorResponse(
+        'Missing required fields',
+        400,
+        requiredValidation.errors
       )
     }
+
+    const { email, name, tempPassword } = body
+
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.isValid) {
+      return createErrorResponse(emailValidation.error || 'Invalid email', 400)
+    }
+
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeEmail(email)
+    const sanitizedName = sanitizeString(name)
     
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/login`
+    const loginUrl = getLoginUrl(request)
     
-    const result = await sendCredentialsEmail(email, name, tempPassword, loginUrl)
+    const result = await sendCredentialsEmail(sanitizedEmail, sanitizedName, tempPassword, loginUrl)
     
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Failed to send email' },
-        { status: 500 }
+      return createErrorResponse(
+        result.error || 'Failed to send email',
+        500,
+        undefined,
+        'EMAIL_ERROR'
       )
     }
     
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Credentials email sent successfully',
-      messageId: result.messageId 
-    })
-  } catch (error) {
-    console.error('Error in send-credentials route:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createSuccessResponse(
+      { messageId: result.messageId },
+      'Credentials email sent successfully'
     )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
 

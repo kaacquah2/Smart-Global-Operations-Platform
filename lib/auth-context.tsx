@@ -93,7 +93,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       })
 
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as Awaited<ReturnType<typeof signInPromise>>
+      const result = await Promise.race([
+        signInPromise,
+        timeoutPromise.then(() => ({ data: null, error: { message: 'Timeout' } }))
+      ]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>
+
+      const { data, error } = result
 
       if (error) {
         throw new Error(error.message || "Invalid email or password")
@@ -102,10 +107,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user?.id) {
         // Use user ID directly - faster than email lookup
         const userDataPromise = getUserById(data.user.id)
-        const userDataTimeout = new Promise((_, reject) =>
+        const userDataTimeout = new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error("User data fetch timed out. Please try again.")), 5000)
         )
-        const userData = await Promise.race([userDataPromise, userDataTimeout]) as Awaited<ReturnType<typeof userDataPromise>>
+        const userData = await Promise.race([
+          userDataPromise,
+          userDataTimeout.then(() => null)
+        ]) as Awaited<ReturnType<typeof getUserById>>
         
         if (!userData) {
           await supabase.auth.signOut()
@@ -116,10 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (data.user?.email) {
         // Fallback to email lookup if ID not available
         const userDataPromise = getUserByEmail(data.user.email)
-        const userDataTimeout = new Promise((_, reject) =>
+        const userDataTimeout = new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error("User data fetch timed out. Please try again.")), 5000)
         )
-        const userData = await Promise.race([userDataPromise, userDataTimeout]) as Awaited<ReturnType<typeof userDataPromise>>
+        const userData = await Promise.race([
+          userDataPromise,
+          userDataTimeout.then(() => null)
+        ]) as Awaited<ReturnType<typeof getUserByEmail>>
         
         if (!userData) {
           await supabase.auth.signOut()

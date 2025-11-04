@@ -1,21 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { 
+  parseRequestBody, 
+  validateRequiredFields,
+  validateEmail,
+  validatePassword,
+  sanitizeEmail,
+  sanitizeString,
+  createErrorResponse,
+  createSuccessResponse,
+  handleApiError,
+  getClientIP
+} from '@/lib/api-utils'
+import { rateLimitMiddleware } from '@/lib/rate-limit'
 
 // This route uses the service role key to create users via Admin API
 // Only accessible from server-side
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify this is coming from authenticated admin (in production, add proper auth check)
-    const body = await request.json()
-    const { email, password, name } = body
+    // Rate limiting - 10 requests per minute per IP
+    const rateLimit = rateLimitMiddleware(10, 60 * 1000)
+    const rateLimitResult = rateLimit(request, getClientIP(request))
+    
+    if (!rateLimitResult.allowed) {
+      return rateLimitResult.response as NextResponse
+    }
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+    // Parse request body
+    const { data: body, error: parseError } = await parseRequestBody(request)
+    if (parseError || !body) {
+      return createErrorResponse(parseError || 'Invalid request body', 400)
+    }
+
+    // Validate required fields
+    const requiredValidation = validateRequiredFields(body, ['email', 'password'])
+    if (!requiredValidation.isValid) {
+      return createErrorResponse(
+        'Missing required fields',
+        400,
+        requiredValidation.errors
       )
     }
+
+    const { email, password, name } = body
+
+    // Validate email
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.isValid) {
+      return createErrorResponse(emailValidation.error || 'Invalid email', 400)
+    }
+
+    // Validate password
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.isValid) {
+      return createErrorResponse(passwordValidation.error || 'Invalid password', 400)
+    }
+
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeEmail(email)
+    const sanitizedName = name ? sanitizeString(name) : undefined
 
     // Use service role key for admin operations
     const supabaseAdmin = createClient(
@@ -31,40 +75,39 @@ export async function POST(request: NextRequest) {
 
     // Create user using Admin API
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
+      email: sanitizedEmail,
       password: password,
       email_confirm: true, // Auto-confirm email so they can login immediately
       user_metadata: {
-        name: name,
+        name: sanitizedName,
       },
     })
 
     if (error) {
       console.error('Error creating auth user:', error)
-      return NextResponse.json(
-        { error: error.message || 'Failed to create auth user' },
-        { status: 400 }
+      return createErrorResponse(
+        error.message || 'Failed to create auth user',
+        400,
+        undefined,
+        'AUTH_ERROR'
       )
     }
 
     if (!data.user) {
-      return NextResponse.json(
-        { error: 'No user data returned' },
-        { status: 500 }
+      return createErrorResponse(
+        'No user data returned',
+        500,
+        undefined,
+        'AUTH_ERROR'
       )
     }
 
-    return NextResponse.json({
-      success: true,
+    return createSuccessResponse({
       userId: data.user.id,
       email: data.user.email,
-    })
+    }, 'User created successfully')
   } catch (error) {
-    console.error('Error in create-user route:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return handleApiError(error)
   }
 }
 

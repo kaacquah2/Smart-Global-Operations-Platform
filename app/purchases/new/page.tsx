@@ -14,6 +14,15 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { FileUpload } from "@/components/file-upload"
+import { useFormValidation } from "@/lib/hooks/use-form-validation"
+import { ValidationRules } from "@/lib/validation"
+import { 
+  generateFieldId, 
+  generateErrorId, 
+  getFieldAriaLabel, 
+  getFieldAriaDescribedBy, 
+  getFieldAriaInvalid 
+} from "@/lib/accessibility"
 
 export const dynamic = 'force-dynamic'
 
@@ -22,19 +31,60 @@ export default function NewPurchaseRequestPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [departments, setDepartments] = useState<any[]>([])
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    category: '',
-    vendor_name: '',
-    vendor_contact: '',
-    estimated_cost: '',
-    currency: 'USD',
-    justification: '',
-    urgency: 'normal',
-    department_id: '',
-  })
   const [attachments, setAttachments] = useState<string[]>([])
+
+  const form = useFormValidation(
+    {
+      title: '',
+      description: '',
+      category: '',
+      vendor_name: '',
+      vendor_contact: '',
+      estimated_cost: '',
+      currency: 'USD',
+      justification: '',
+      urgency: 'normal',
+      department_id: '',
+    },
+    {
+      title: ValidationRules.required,
+      description: ValidationRules.required,
+      category: ValidationRules.required,
+      estimated_cost: ValidationRules.positiveNumber,
+      justification: ValidationRules.required,
+      vendor_name: ValidationRules.optional,
+      vendor_contact: ValidationRules.optional,
+      currency: ValidationRules.required,
+      urgency: ValidationRules.required,
+      department_id: ValidationRules.optional,
+    },
+    {
+      validateOnChange: true,
+      validateOnBlur: true,
+      onSubmit: async (data) => {
+        if (!user) return
+        setLoading(true)
+        try {
+          const requestData = {
+            ...data,
+            requestor_id: user.id,
+            department_id: data.department_id || undefined,
+            estimated_cost: parseFloat(data.estimated_cost),
+            attachments: attachments.length > 0 ? attachments : undefined,
+          }
+
+          const request = await createPurchaseRequest(requestData as any)
+          router.push(`/purchases/${request.id}`)
+        } catch (error) {
+          console.error('Error creating purchase request:', error)
+          alert('Failed to create purchase request. Please try again.')
+          throw error
+        } finally {
+          setLoading(false)
+        }
+      },
+    }
+  )
 
   useEffect(() => {
     const loadDepartments = async () => {
@@ -45,33 +95,29 @@ export default function NewPurchaseRequestPage() {
       if (depts.length > 0 && user?.department) {
         const userDept = depts.find(d => d.name === user.department)
         if (userDept) {
-          setFormData(prev => ({ ...prev, department_id: userDept.id }))
+          form.setFieldValue('department_id', userDept.id)
         }
       }
     }
     loadDepartments()
   }, [user])
 
-  const handleSubmit = async (e: React.FormEvent, submitForApproval: boolean = false) => {
-    e.preventDefault()
-    if (!user) return
+  const handleSubmitForApproval = async () => {
+    const isValid = await form.handleSubmit()
+    if (!isValid || !user) return
 
     setLoading(true)
     try {
       const requestData = {
-        ...formData,
+        ...form.data,
         requestor_id: user.id,
-        department_id: formData.department_id || undefined,
-        estimated_cost: parseFloat(formData.estimated_cost),
+        department_id: form.data.department_id || undefined,
+        estimated_cost: parseFloat(form.data.estimated_cost),
         attachments: attachments.length > 0 ? attachments : undefined,
       }
 
       const request = await createPurchaseRequest(requestData as any)
-
-      if (submitForApproval) {
-        await submitPurchaseRequest(request.id)
-      }
-
+      await submitPurchaseRequest(request.id)
       router.push(`/purchases/${request.id}`)
     } catch (error) {
       console.error('Error creating purchase request:', error)
@@ -96,21 +142,37 @@ export default function NewPurchaseRequestPage() {
             <CardTitle>New Purchase Request</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-6">
+            <form onSubmit={form.handleSubmit} className="space-y-6" aria-label="New purchase request form">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="title">Title *</Label>
+                  <Label htmlFor={generateFieldId('purchase', 'title')}>Title *</Label>
                   <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    id={generateFieldId('purchase', 'title')}
+                    value={form.data.title}
+                    onChange={(e) => form.handleChange('title')(e.target.value)}
+                    onBlur={form.handleBlur('title')}
+                    aria-label={getFieldAriaLabel('Title', true)}
+                    aria-invalid={getFieldAriaInvalid(!!form.errors.title)}
+                    aria-describedby={getFieldAriaDescribedBy(generateFieldId('purchase', 'title'), !!form.errors.title)}
                     required
                   />
+                  {form.errors.title && form.touched.title && (
+                    <p id={generateErrorId(generateFieldId('purchase', 'title'))} className="text-sm text-destructive mt-1" role="alert">
+                      {form.errors.title}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="category">Category *</Label>
-                  <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                    <SelectTrigger>
+                  <Label htmlFor={generateFieldId('purchase', 'category')}>Category *</Label>
+                  <Select 
+                    value={form.data.category} 
+                    onValueChange={(value) => form.handleChange('category')(value)}
+                  >
+                    <SelectTrigger
+                      id={generateFieldId('purchase', 'category')}
+                      aria-label={getFieldAriaLabel('Category', true)}
+                      aria-invalid={getFieldAriaInvalid(!!form.errors.category)}
+                    >
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -121,26 +183,43 @@ export default function NewPurchaseRequestPage() {
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  {form.errors.category && form.touched.category && (
+                    <p id={generateErrorId(generateFieldId('purchase', 'category'))} className="text-sm text-destructive mt-1" role="alert">
+                      {form.errors.category}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor={generateFieldId('purchase', 'description')}>Description *</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  id={generateFieldId('purchase', 'description')}
+                  value={form.data.description}
+                  onChange={(e) => form.handleChange('description')(e.target.value)}
+                  onBlur={form.handleBlur('description')}
                   rows={4}
+                  aria-label={getFieldAriaLabel('Description', true)}
+                  aria-invalid={getFieldAriaInvalid(!!form.errors.description)}
+                  aria-describedby={getFieldAriaDescribedBy(generateFieldId('purchase', 'description'), !!form.errors.description)}
                   required
                 />
+                {form.errors.description && form.touched.description && (
+                  <p id={generateErrorId(generateFieldId('purchase', 'description'))} className="text-sm text-destructive mt-1" role="alert">
+                    {form.errors.description}
+                  </p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="estimated_cost">Estimated Cost *</Label>
+                  <Label htmlFor={generateFieldId('purchase', 'estimated_cost')}>Estimated Cost *</Label>
                   <div className="flex gap-2">
-                    <Select value={formData.currency} onValueChange={(value) => setFormData({ ...formData, currency: value })}>
-                      <SelectTrigger className="w-24">
+                    <Select 
+                      value={form.data.currency} 
+                      onValueChange={(value) => form.handleChange('currency')(value)}
+                    >
+                      <SelectTrigger className="w-24" aria-label="Currency">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -151,19 +230,34 @@ export default function NewPurchaseRequestPage() {
                       </SelectContent>
                     </Select>
                     <Input
-                      id="estimated_cost"
+                      id={generateFieldId('purchase', 'estimated_cost')}
                       type="number"
                       step="0.01"
-                      value={formData.estimated_cost}
-                      onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
+                      value={form.data.estimated_cost}
+                      onChange={(e) => form.handleChange('estimated_cost')(e.target.value)}
+                      onBlur={form.handleBlur('estimated_cost')}
+                      aria-label={getFieldAriaLabel('Estimated Cost', true)}
+                      aria-invalid={getFieldAriaInvalid(!!form.errors.estimated_cost)}
+                      aria-describedby={getFieldAriaDescribedBy(generateFieldId('purchase', 'estimated_cost'), !!form.errors.estimated_cost)}
                       required
                     />
                   </div>
+                  {form.errors.estimated_cost && form.touched.estimated_cost && (
+                    <p id={generateErrorId(generateFieldId('purchase', 'estimated_cost'))} className="text-sm text-destructive mt-1" role="alert">
+                      {form.errors.estimated_cost}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label htmlFor="urgency">Urgency</Label>
-                  <Select value={formData.urgency} onValueChange={(value) => setFormData({ ...formData, urgency: value })}>
-                    <SelectTrigger>
+                  <Label htmlFor={generateFieldId('purchase', 'urgency')}>Urgency</Label>
+                  <Select 
+                    value={form.data.urgency} 
+                    onValueChange={(value) => form.handleChange('urgency')(value)}
+                  >
+                    <SelectTrigger
+                      id={generateFieldId('purchase', 'urgency')}
+                      aria-label="Urgency level"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -178,33 +272,46 @@ export default function NewPurchaseRequestPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="vendor_name">Vendor Name</Label>
+                  <Label htmlFor={generateFieldId('purchase', 'vendor_name')}>Vendor Name</Label>
                   <Input
-                    id="vendor_name"
-                    value={formData.vendor_name}
-                    onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
+                    id={generateFieldId('purchase', 'vendor_name')}
+                    value={form.data.vendor_name}
+                    onChange={(e) => form.handleChange('vendor_name')(e.target.value)}
+                    onBlur={form.handleBlur('vendor_name')}
+                    aria-label="Vendor Name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="vendor_contact">Vendor Contact</Label>
+                  <Label htmlFor={generateFieldId('purchase', 'vendor_contact')}>Vendor Contact</Label>
                   <Input
-                    id="vendor_contact"
-                    value={formData.vendor_contact}
-                    onChange={(e) => setFormData({ ...formData, vendor_contact: e.target.value })}
+                    id={generateFieldId('purchase', 'vendor_contact')}
+                    value={form.data.vendor_contact}
+                    onChange={(e) => form.handleChange('vendor_contact')(e.target.value)}
+                    onBlur={form.handleBlur('vendor_contact')}
+                    aria-label="Vendor Contact"
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="justification">Justification *</Label>
+                <Label htmlFor={generateFieldId('purchase', 'justification')}>Justification *</Label>
                 <Textarea
-                  id="justification"
-                  value={formData.justification}
-                  onChange={(e) => setFormData({ ...formData, justification: e.target.value })}
+                  id={generateFieldId('purchase', 'justification')}
+                  value={form.data.justification}
+                  onChange={(e) => form.handleChange('justification')(e.target.value)}
+                  onBlur={form.handleBlur('justification')}
                   rows={4}
                   placeholder="Explain why this purchase is necessary..."
+                  aria-label={getFieldAriaLabel('Justification', true)}
+                  aria-invalid={getFieldAriaInvalid(!!form.errors.justification)}
+                  aria-describedby={getFieldAriaDescribedBy(generateFieldId('purchase', 'justification'), !!form.errors.justification)}
                   required
                 />
+                {form.errors.justification && form.touched.justification && (
+                  <p id={generateErrorId(generateFieldId('purchase', 'justification'))} className="text-sm text-destructive mt-1" role="alert">
+                    {form.errors.justification}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -228,15 +335,16 @@ export default function NewPurchaseRequestPage() {
               </div>
 
               <div className="flex gap-4">
-                <Button type="submit" variant="outline" disabled={loading}>
+                <Button type="submit" variant="outline" disabled={loading || form.isSubmitting} aria-label="Save purchase request as draft">
                   Save as Draft
                 </Button>
                 <Button 
                   type="button" 
-                  onClick={(e) => handleSubmit(e, true)}
-                  disabled={loading}
+                  onClick={handleSubmitForApproval}
+                  disabled={loading || form.isSubmitting}
+                  aria-label="Submit purchase request for approval"
                 >
-                  Submit for Approval
+                  {loading || form.isSubmitting ? "Submitting..." : "Submit for Approval"}
                 </Button>
               </div>
             </form>

@@ -110,11 +110,47 @@ export default function PasswordResetRequestsPage() {
         throw new Error(data.error || 'Failed to process password reset')
       }
 
+      // Check if email was sent successfully
+      if (data.emailSent === false) {
+        // Check if it's a domain verification issue
+        if (data.requiresDomainVerification) {
+          const errorMsg = `⚠️ Domain Verification Required\n\n` +
+            `Password was reset successfully, but Resend requires domain verification to send emails.\n\n` +
+            `Error: ${data.emailError || 'Unknown error'}\n\n` +
+            `Current Setup: Using test domain (onboarding@resend.dev)\n` +
+            `Test domain only allows sending to: ${data.accountEmail || 'your account email'}\n\n` +
+            `📧 New Password: ${data.newPassword || 'N/A'}\n\n` +
+            `To fix this:\n` +
+            `1. Go to ${data.helpUrl || 'https://resend.com/domains'}\n` +
+            `2. Verify your domain\n` +
+            `3. Update FROM_EMAIL in Vercel environment variables\n\n` +
+            `For now, please manually send this password to the user.`
+          
+          alert(errorMsg)
+          console.error('Domain verification required:', data.emailError)
+          console.log('New Password (for manual sending):', data.newPassword)
+        } else {
+          // Show error with password so admin can manually send it
+          const errorMsg = `Password was reset, but email failed to send.\n\n` +
+            `Email Error: ${data.emailError || 'Unknown error'}\n\n` +
+            `New Password: ${data.newPassword || 'N/A'}\n\n` +
+            `Please manually send this password to the user via email or secure method.`
+          
+          alert(errorMsg)
+          console.error('Email sending failed:', data.emailError)
+          console.log('New Password (for manual sending):', data.newPassword)
+        }
+      } else if (data.success) {
+        // Success - show success message
+        alert('Password reset completed successfully! Email has been sent to the user.')
+      }
+
       // Reload requests
       await loadRequests(true)
     } catch (error) {
       console.error('Error processing password reset:', error)
-      alert(error instanceof Error ? error.message : 'Failed to process password reset')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process password reset'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setProcessingId(null)
       setSelectedRequest(null)
@@ -296,9 +332,18 @@ export default function PasswordResetRequestsPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Process Password Reset Request?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will generate a new password for <strong>{selectedRequest?.user_email}</strong> and send it via email.
-              The user will be notified immediately.
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                This will generate a new password for <strong>{selectedRequest?.user_email}</strong> based on their initials and year joined.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Password Format:</strong> User Initials + Year Joined + Special Character + Number
+                <br />
+                Example: If user is "John Smith" and joined in 2024, password will be like "JS2024!3"
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                The new password will be sent to the user via email immediately.
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

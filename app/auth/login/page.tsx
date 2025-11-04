@@ -11,36 +11,67 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Eye, EyeOff, Mail, Lock, Layers, ArrowRight, CheckCircle } from "lucide-react"
 import { APP_NAME, APP_FULL_NAME } from "@/lib/constants"
+import { useFormValidation } from "@/lib/hooks/use-form-validation"
+import { ValidationRules } from "@/lib/validation"
+import { 
+  generateFieldId, 
+  generateErrorId, 
+  getFieldAriaLabel, 
+  getFieldAriaDescribedBy, 
+  getFieldAriaInvalid,
+  handleKeyboardNavigation 
+} from "@/lib/accessibility"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
   const [forgotPasswordError, setForgotPasswordError] = useState("")
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError("")
-
-    try {
-      await login(email, password)
-      // Redirect will be handled by dashboard page based on role
-      router.push("/dashboard")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Please try again.")
-    } finally {
-      setLoading(false)
+  const form = useFormValidation(
+    {
+      email: "",
+      password: "",
+    },
+    {
+      email: ValidationRules.email,
+      password: ValidationRules.required,
+    },
+    {
+      validateOnChange: true,
+      validateOnBlur: true,
+      onSubmit: async (data) => {
+        try {
+          await login(data.email.trim().toLowerCase(), data.password)
+          router.push("/dashboard")
+        } catch (err) {
+          // Handle login errors
+          let errorMessage = "Login failed. Please try again."
+          
+          if (err instanceof Error) {
+            const errorMsg = err.message.toLowerCase()
+            if (errorMsg.includes('invalid') || errorMsg.includes('password')) {
+              errorMessage = "Invalid email or password. Please check your credentials and try again."
+            } else if (errorMsg.includes('not found') || errorMsg.includes('profile')) {
+              errorMessage = "User account not found. Please contact your administrator."
+            } else if (errorMsg.includes('timeout')) {
+              errorMessage = "Connection timeout. Please check your internet connection and try again."
+            } else {
+              errorMessage = err.message || errorMessage
+            }
+          }
+          
+          form.setFieldError('email', errorMessage)
+          form.setFieldError('password', '')
+          throw err
+        }
+      },
     }
-  }
+  )
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,65 +135,92 @@ export default function LoginPage() {
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={form.handleSubmit} className="space-y-4" aria-label="Login form">
               {/* Email Field */}
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-foreground">
+                <label htmlFor={generateFieldId('login', 'email')} className="text-sm font-medium text-foreground">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" aria-hidden="true" />
                   <Input
-                    id="email"
+                    id={generateFieldId('login', 'email')}
                     type="email"
                     placeholder="you@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={form.data.email}
+                    onChange={(e) => form.handleChange('email')(e.target.value)}
+                    onBlur={form.handleBlur('email')}
+                    aria-label={getFieldAriaLabel('Email Address', true)}
+                    aria-invalid={getFieldAriaInvalid(!!form.errors.email)}
+                    aria-describedby={getFieldAriaDescribedBy(generateFieldId('login', 'email'), !!form.errors.email)}
                     className="pl-10"
+                    autoComplete="email"
+                    required
                   />
                 </div>
+                {form.errors.email && form.touched.email && (
+                  <p id={generateErrorId(generateFieldId('login', 'email'))} className="text-sm text-destructive" role="alert">
+                    {form.errors.email}
+                  </p>
+                )}
               </div>
 
               {/* Password Field */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  <label htmlFor={generateFieldId('login', 'password')} className="text-sm font-medium text-foreground">
                     Password
                   </label>
                   <button 
                     type="button" 
                     className="text-xs text-accent hover:underline"
                     onClick={() => setForgotPasswordOpen(true)}
+                    aria-label="Forgot password? Click to request password reset"
                   >
                     Forgot?
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" aria-hidden="true" />
                   <Input
-                    id="password"
+                    id={generateFieldId('login', 'password')}
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={form.data.password}
+                    onChange={(e) => form.handleChange('password')(e.target.value)}
+                    onBlur={form.handleBlur('password')}
+                    aria-label={getFieldAriaLabel('Password', true)}
+                    aria-invalid={getFieldAriaInvalid(!!form.errors.password)}
+                    aria-describedby={getFieldAriaDescribedBy(generateFieldId('login', 'password'), !!form.errors.password)}
                     className="pl-10 pr-10"
+                    autoComplete="current-password"
+                    required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
+                {form.errors.password && form.touched.password && (
+                  <p id={generateErrorId(generateFieldId('login', 'password'))} className="text-sm text-destructive" role="alert">
+                    {form.errors.password}
+                  </p>
+                )}
               </div>
 
-              {/* Error Message */}
-              {error && <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">{error}</div>}
-
               {/* Login Button */}
-              <Button type="submit" className="w-full gap-2" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"} {!loading && <ArrowRight className="h-4 w-4" />}
+              <Button 
+                type="submit" 
+                className="w-full gap-2" 
+                disabled={form.isSubmitting}
+                aria-label="Sign in to your account"
+              >
+                {form.isSubmitting ? "Signing in..." : "Sign In"} {!form.isSubmitting && <ArrowRight className="h-4 w-4" />}
               </Button>
 
               {/* Divider */}
