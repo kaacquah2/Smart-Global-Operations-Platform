@@ -42,7 +42,7 @@ async function sendCredentialsEmail(
       const resend = new Resend(process.env.RESEND_API_KEY)
       
       const { data, error } = await resend.emails.send({
-        from: process.env.FROM_EMAIL || 'noreply@sgoap.com',
+        from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
         to: email,
         subject: `Welcome to ${APP_NAME} - Your Login Credentials`,
         html: `
