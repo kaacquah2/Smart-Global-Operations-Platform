@@ -1,0 +1,10 @@
+# Supabase project configuration
+# This file is optional but helps with local development
+
+[project]
+name = "smart-global-operations-platform"
+
+[functions]
+# Edge Functions configuration
+send-email = { verify_jwt = false }
+
