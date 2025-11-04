@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { getUserByEmail, getAllUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/queries"
+import { getUserByEmail, getUserById, getAllUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/queries"
 import type { User, UserRole, CreateEmployeePayload } from "./types"
 
 interface AuthContextType {
@@ -31,7 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.email) {
+      if (session?.user?.id) {
+        // Use user ID directly - faster than email lookup
+        const userData = await getUserById(session.user.id)
+        if (userData) {
+          setUser(userData)
+          setIsLoggedIn(true)
+        }
+      } else if (session?.user?.email) {
+        // Fallback to email lookup if ID not available
         const userData = await getUserByEmail(session.user.email)
         if (userData) {
           setUser(userData)
@@ -41,7 +49,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Listen for auth changes
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user?.email) {
+        if (session?.user?.id) {
+          const userData = await getUserById(session.user.id)
+          if (userData) {
+            setUser(userData)
+            setIsLoggedIn(true)
+          } else {
+            setUser(null)
+            setIsLoggedIn(false)
+          }
+        } else if (session?.user?.email) {
           const userData = await getUserByEmail(session.user.email)
           if (userData) {
             setUser(userData)
@@ -65,23 +82,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase])
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password,
-    })
+    try {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Login request timed out. Please try again.")), 10000)
+      )
 
-    if (error) {
-      throw new Error(error.message || "Invalid email or password")
-    }
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password,
+      })
 
-    if (data.user?.email) {
-      const userData = await getUserByEmail(data.user.email)
-      if (!userData) {
-        await supabase.auth.signOut()
-        throw new Error("User profile not found")
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as Awaited<ReturnType<typeof signInPromise>>
+
+      if (error) {
+        throw new Error(error.message || "Invalid email or password")
       }
-      setUser(userData)
-      setIsLoggedIn(true)
+
+      if (data.user?.id) {
+        // Use user ID directly - faster than email lookup
+        const userDataPromise = getUserById(data.user.id)
+        const userDataTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("User data fetch timed out. Please try again.")), 5000)
+        )
+        const userData = await Promise.race([userDataPromise, userDataTimeout]) as Awaited<ReturnType<typeof userDataPromise>>
+        
+        if (!userData) {
+          await supabase.auth.signOut()
+          throw new Error("User profile not found")
+        }
+        setUser(userData)
+        setIsLoggedIn(true)
+      } else if (data.user?.email) {
+        // Fallback to email lookup if ID not available
+        const userDataPromise = getUserByEmail(data.user.email)
+        const userDataTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("User data fetch timed out. Please try again.")), 5000)
+        )
+        const userData = await Promise.race([userDataPromise, userDataTimeout]) as Awaited<ReturnType<typeof userDataPromise>>
+        
+        if (!userData) {
+          await supabase.auth.signOut()
+          throw new Error("User profile not found")
+        }
+        setUser(userData)
+        setIsLoggedIn(true)
+      }
+    } catch (err) {
+      // Re-throw error with better message
+      if (err instanceof Error) {
+        throw err
+      }
+      throw new Error("Login failed. Please check your connection and try again.")
     }
   }
 
