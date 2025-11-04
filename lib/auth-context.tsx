@@ -3,7 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { getUserByEmail, getUserById, getAllUsers, createUser, updateUser, deleteUser } from "@/lib/supabase/queries"
+import { getUserByEmail, getUserById, getAllUsers, createUser, updateUser, deleteUser, isPositionFilled } from "@/lib/supabase/queries"
 import type { User, UserRole, CreateEmployeePayload } from "./types"
 
 interface AuthContextType {
@@ -14,7 +14,7 @@ interface AuthContextType {
   hasAccess: (requiredRoles: UserRole[]) => boolean
   canView: (resource: "branch" | "department", resourceId: string) => boolean
   setUser: (user: User) => void
-  createEmployee: (payload: CreateEmployeePayload) => Promise<User>
+  createEmployee: (payload: CreateEmployeePayload) => Promise<{ user: User; tempPassword: string }>
   getAllUsers: () => Promise<User[]>
   deleteUser: (userId: string) => Promise<void>
   updateUser: (userId: string, updates: Partial<User>) => Promise<void>
@@ -174,9 +174,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false
   }
 
-  const createEmployee = async (payload: CreateEmployeePayload): Promise<User> => {
+  const createEmployee = async (payload: CreateEmployeePayload): Promise<{ user: User; tempPassword: string }> => {
     if (!user || user.role !== "admin") {
       throw new Error("Only admins can create employees")
+    }
+
+    // Check if position is already filled
+    if (payload.position) {
+      const positionFilled = await isPositionFilled(
+        payload.position,
+        payload.department,
+        payload.branch
+      )
+      
+      if (positionFilled) {
+        throw new Error(
+          `The position "${payload.position}" in ${payload.department} (${payload.branch}) is already filled. ` +
+          `Please choose a different position or deactivate the existing employee first.`
+        )
+      }
     }
 
     // Generate a secure temporary password
@@ -244,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Failed to create user profile")
     }
 
-    // Send credentials email
+    // Send credentials email to employee
     try {
       await fetch('/api/send-credentials', {
         method: 'POST',
@@ -263,7 +279,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // In production, you might want to queue this for retry
     }
 
-    return newUser
+    // Send admin notification email (optional - only if admin email is configured)
+    if (user.email) {
+      try {
+        await fetch('/api/send-admin-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            adminEmail: user.email,
+            employeeEmail: payload.email.toLowerCase(),
+            employeeName: payload.name,
+            tempPassword: tempPassword,
+          }),
+        })
+      } catch (adminEmailError) {
+        // Don't fail if admin notification fails - it's optional
+        console.error('Failed to send admin notification email:', adminEmailError)
+      }
+    }
+
+    return { user: newUser, tempPassword }
   }
 
   const getAllUsersList = async (): Promise<User[]> => {

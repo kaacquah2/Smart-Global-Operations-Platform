@@ -48,6 +48,9 @@ export default function AdminEmployeesPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null)
   const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [employeeToDelete, setEmployeeToDelete] = useState<User | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn || user?.role !== "admin") {
@@ -107,10 +110,25 @@ export default function AdminEmployeesPage() {
     setEmployeeDialogOpen(true)
   }
 
-  const handleDeleteEmployee = (empId: string) => {
-    if (confirm("Are you sure you want to delete this employee?")) {
-      deleteUser(empId)
-      setEmployees(employees.filter((e) => e.id !== empId))
+  const handleDeleteEmployee = (emp: User) => {
+    setEmployeeToDelete(emp)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return
+    
+    setDeleting(true)
+    try {
+      await deleteUser(employeeToDelete.id)
+      setEmployees(employees.filter((e) => e.id !== employeeToDelete.id))
+      setDeleteDialogOpen(false)
+      setEmployeeToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete employee:', error)
+      alert('Failed to delete employee. Please try again.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -398,7 +416,10 @@ export default function AdminEmployeesPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="text-muted-foreground hover:text-destructive"
-                                  onClick={() => handleDeleteEmployee(emp.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteEmployee(emp)
+                                  }}
                                   title="Delete employee"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -563,6 +584,59 @@ export default function AdminEmployeesPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The employee will be deactivated and unable to access the system.
+            </DialogDescription>
+          </DialogHeader>
+          {employeeToDelete && (
+            <div className="space-y-4 py-4">
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <p className="text-sm font-medium text-foreground mb-2">Employee to be deactivated:</p>
+                <div className="space-y-1">
+                  <p className="text-sm text-foreground"><strong>Name:</strong> {employeeToDelete.name}</p>
+                  <p className="text-sm text-foreground"><strong>Email:</strong> {employeeToDelete.email}</p>
+                  <p className="text-sm text-foreground"><strong>Position:</strong> {employeeToDelete.position || 'N/A'}</p>
+                  <p className="text-sm text-foreground"><strong>Department:</strong> {employeeToDelete.department}</p>
+                </div>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                  <strong>Note:</strong> The employee account will be deactivated (not permanently deleted). 
+                  You can reactivate them later if needed.
+                </p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setEmployeeToDelete(null)
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteEmployee}
+              disabled={deleting}
+            >
+              {deleting ? 'Deactivating...' : 'Deactivate Employee'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </SidebarLayout>

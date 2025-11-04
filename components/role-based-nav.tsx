@@ -181,6 +181,12 @@ const navItems: NavItem[] = [
     roles: ["admin"],
   },
   {
+    icon: <Settings className="h-5 w-5" />,
+    label: "Admin Settings",
+    href: "/admin/settings",
+    roles: ["admin"],
+  },
+  {
     icon: <Clock className="h-5 w-5" />,
     label: "Attendance",
     href: "/attendance",

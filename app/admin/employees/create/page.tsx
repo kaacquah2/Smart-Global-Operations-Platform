@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react"
+import { Plus, ArrowLeft, CheckCircle, AlertCircle, Copy, Check } from "lucide-react"
 import type { UserRole, CreateEmployeePayload } from "@/lib/types"
 import Link from "next/link"
 
@@ -22,6 +22,8 @@ export default function CreateEmployeePage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
   const [formData, setFormData] = useState<CreateEmployeePayload>({
     name: "",
     email: "",
@@ -56,13 +58,13 @@ export default function CreateEmployeePage() {
         throw new Error("Please fill in all required fields")
       }
 
-      await createEmployee(formData)
+      const result = await createEmployee(formData)
+      setCreatedCredentials({
+        email: result.user.email,
+        password: result.tempPassword,
+        name: result.user.name,
+      })
       setSuccess(true)
-
-      // Reset form
-      setTimeout(() => {
-        router.push("/admin/employees")
-      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create employee")
     } finally {
@@ -70,24 +72,103 @@ export default function CreateEmployeePage() {
     }
   }
 
-  if (success) {
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
+  if (success && createdCredentials) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-8 text-center">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-8 w-8 text-green-600" />
+        <Card className="max-w-2xl w-full">
+          <CardContent className="pt-8">
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Employee Created Successfully!</h2>
+              <p className="text-muted-foreground">
+                Login credentials have been sent to <strong>{createdCredentials.email}</strong>
+              </p>
+            </div>
+
+            {/* Credentials Display */}
+            <div className="bg-accent/5 border border-accent/20 rounded-lg p-6 mb-6">
+              <h3 className="font-semibold text-foreground mb-4 text-center">Employee Credentials</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Employee Name</label>
+                  <div className="flex items-center gap-2 bg-card border border-border rounded-md p-3">
+                    <span className="flex-1 font-mono text-sm">{createdCredentials.name}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Email Address</label>
+                  <div className="flex items-center gap-2 bg-card border border-border rounded-md p-3">
+                    <span className="flex-1 font-mono text-sm">{createdCredentials.email}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(createdCredentials.email, 'email')}
+                      className="h-8 w-8 p-0"
+                    >
+                      {copiedField === 'email' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground mb-1 block">Temporary Password</label>
+                  <div className="flex items-center gap-2 bg-card border border-border rounded-md p-3">
+                    <span className="flex-1 font-mono text-sm font-bold">{createdCredentials.password}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(createdCredentials.password, 'password')}
+                      className="h-8 w-8 p-0"
+                    >
+                      {copiedField === 'password' ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                  <strong>⚠️ Important:</strong> Save these credentials securely. The employee will also receive them via email. 
+                  They should change their password on first login.
+                </p>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Employee Created!</h2>
-            <p className="text-muted-foreground mb-4">
-              The employee profile has been created successfully. Login credentials have been sent to their email address.
-            </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              The employee will receive an email with their temporary password that they can change on first login.
-            </p>
-            <Button onClick={() => router.push("/admin/employees")}>Back to Employees</Button>
+
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => router.push("/admin/employees/create")}
+                className="flex-1"
+              >
+                Create Another Employee
+              </Button>
+              <Button 
+                onClick={() => router.push("/admin/employees")}
+                className="flex-1 bg-accent hover:bg-accent/90"
+              >
+                Back to Employees
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

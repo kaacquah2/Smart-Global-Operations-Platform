@@ -100,6 +100,40 @@ export async function deleteUser(id: string): Promise<boolean> {
   return !error
 }
 
+// Check if a position is already filled
+export async function isPositionFilled(
+  position: string,
+  department: string,
+  branch: string,
+  excludeUserId?: string
+): Promise<boolean> {
+  try {
+    let query = supabase
+      .from('users')
+      .select('id')
+      .eq('position', position)
+      .eq('department', department)
+      .eq('branch', branch)
+      .eq('is_active', true)
+    
+    if (excludeUserId) {
+      query = query.neq('id', excludeUserId)
+    }
+    
+    const { data, error } = await query
+    
+    if (error) {
+      console.error('Error checking position availability:', error)
+      return false // Assume available if error
+    }
+    
+    return (data?.length || 0) > 0
+  } catch (err) {
+    console.error('Exception in isPositionFilled:', err)
+    return false
+  }
+}
+
 // =====================================================
 // TASK QUERIES
 // =====================================================
